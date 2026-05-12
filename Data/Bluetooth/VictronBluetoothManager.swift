@@ -242,13 +242,20 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                 textBuffer.removeFirst(textBuffer.count - 4096)
             }
 
-            let lines = textBuffer.components(separatedBy: "\n")
-            if lines.count > 1 {
-                textBuffer = lines.last ?? ""
-                let completeBlock = lines.dropLast().joined(separator: "\n")
+            let parts = textBuffer.components(separatedBy: .newlines)
+            if parts.count > 1 {
+                textBuffer = parts.last ?? ""
+                let completeBlock = parts.dropLast().joined(separator: "\n")
                 if let registers = VictronRegisterParser.parseTextFrame(completeBlock) {
                     return VictronRegisterParser.buildSnapshot(registers: registers)
                 }
+            }
+
+            // Some VE.Direct payloads terminate with "Checksum". Parse eagerly when detected.
+            if textBuffer.localizedCaseInsensitiveContains("CHECKSUM"),
+               let registers = VictronRegisterParser.parseTextFrame(textBuffer) {
+                textBuffer.removeAll(keepingCapacity: true)
+                return VictronRegisterParser.buildSnapshot(registers: registers)
             }
         }
         
