@@ -1,5 +1,6 @@
 import SwiftUI
 import SceneKit
+import UIKit
 
 struct VWBus3DView: View {
     private let scene: SCNScene = VWBus3DView.makeScene()
@@ -15,24 +16,37 @@ struct VWBus3DView: View {
     }
 
     private static func makeScene() -> SCNScene {
-        guard let url = Bundle.main.url(forResource: "Volkswagen Type 2 Kombi T1 1967", withExtension: "fbx", subdirectory: "Models") else {
-            return makeFallbackScene()
+        let scene: SCNScene
+        if let url = Bundle.main.url(forResource: "Volkswagen Type 2 Kombi T1 1967", withExtension: "fbx", subdirectory: "Models"),
+           let source = SCNSceneSource(url: url, options: nil),
+           let loaded = source.scene(options: nil) {
+            scene = makeLoadedModelScene(from: loaded)
+        } else {
+            scene = makeFallbackScene()
         }
 
-        guard let source = SCNSceneSource(url: url, options: nil),
-              let scene = source.scene(options: nil) else {
-            return makeFallbackScene()
-        }
+        scene.background.contents = UIColor.clear
+        return scene
+    }
 
-        let root = scene.rootNode
-        root.scale = SCNVector3(0.015, 0.015, 0.015)
-        let spin = SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: CGFloat.pi * 2, z: 0, duration: 14))
-        root.runAction(spin)
+    private static func makeLoadedModelScene(from loadedScene: SCNScene) -> SCNScene {
+        let scene = SCNScene()
+        scene.background.contents = UIColor.clear
+
+        let content = loadedScene.rootNode.clone()
+        normalize(node: content, targetSize: 2.1)
+        content.position = SCNVector3(0, -0.28, 0)
+        let spin = SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: CGFloat.pi * 2, z: 0, duration: 18))
+        content.runAction(spin)
+        scene.rootNode.addChildNode(content)
+
+        addCommonLightingAndCamera(to: scene)
         return scene
     }
 
     private static func makeFallbackScene() -> SCNScene {
         let scene = SCNScene()
+        scene.background.contents = UIColor.clear
 
         let body = SCNBox(width: 2.3, height: 0.9, length: 1.1, chamferRadius: 0.12)
         body.firstMaterial?.diffuse.contents = UIColor(red: 0.16, green: 0.30, blue: 0.56, alpha: 1)
@@ -77,31 +91,61 @@ struct VWBus3DView: View {
         busRoot.addChildNode(bodyNode)
         busRoot.addChildNode(roofNode)
         busRoot.addChildNode(splitterNode)
-        busRoot.scale = SCNVector3(0.55, 0.55, 0.55)
+        busRoot.scale = SCNVector3(0.95, 0.95, 0.95)
+        busRoot.position = SCNVector3(0, -0.16, 0)
         scene.rootNode.addChildNode(busRoot)
 
-        let cameraNode = SCNNode()
-        cameraNode.camera = SCNCamera()
-        cameraNode.position = SCNVector3(0, 1.0, 4.0)
-        scene.rootNode.addChildNode(cameraNode)
-
-        let lightNode = SCNNode()
-        lightNode.light = SCNLight()
-        lightNode.light?.type = .omni
-        lightNode.light?.intensity = 1200
-        lightNode.position = SCNVector3(2.5, 4.5, 4.5)
-        scene.rootNode.addChildNode(lightNode)
-
-        let ambientNode = SCNNode()
-        ambientNode.light = SCNLight()
-        ambientNode.light?.type = .ambient
-        ambientNode.light?.intensity = 420
-        ambientNode.light?.color = UIColor(red: 0.62, green: 0.72, blue: 0.85, alpha: 1)
-        scene.rootNode.addChildNode(ambientNode)
+        addCommonLightingAndCamera(to: scene)
 
         let spin = SCNAction.repeatForever(SCNAction.rotateBy(x: 0, y: CGFloat.pi * 2, z: 0, duration: 16))
         busRoot.runAction(spin)
 
         return scene
+    }
+
+    private static func addCommonLightingAndCamera(to scene: SCNScene) {
+        let cameraNode = SCNNode()
+        cameraNode.camera = SCNCamera()
+        cameraNode.camera?.fieldOfView = 34
+        cameraNode.position = SCNVector3(0, 0.9, 3.1)
+        scene.rootNode.addChildNode(cameraNode)
+
+        let keyLightNode = SCNNode()
+        keyLightNode.light = SCNLight()
+        keyLightNode.light?.type = .omni
+        keyLightNode.light?.intensity = 1450
+        keyLightNode.position = SCNVector3(2.2, 3.8, 3.5)
+        scene.rootNode.addChildNode(keyLightNode)
+
+        let fillLightNode = SCNNode()
+        fillLightNode.light = SCNLight()
+        fillLightNode.light?.type = .omni
+        fillLightNode.light?.intensity = 760
+        fillLightNode.position = SCNVector3(-2.4, 2.0, 2.8)
+        scene.rootNode.addChildNode(fillLightNode)
+
+        let ambientNode = SCNNode()
+        ambientNode.light = SCNLight()
+        ambientNode.light?.type = .ambient
+        ambientNode.light?.intensity = 300
+        ambientNode.light?.color = UIColor(red: 0.64, green: 0.73, blue: 0.86, alpha: 1)
+        scene.rootNode.addChildNode(ambientNode)
+    }
+
+    private static func normalize(node: SCNNode, targetSize: Float) {
+        let (minBounds, maxBounds) = node.boundingBox
+        let size = SCNVector3(maxBounds.x - minBounds.x, maxBounds.y - minBounds.y, maxBounds.z - minBounds.z)
+        let maxDimension = max(size.x, max(size.y, size.z))
+        guard maxDimension > 0.0001 else { return }
+
+        let scale = targetSize / maxDimension
+        node.scale = SCNVector3(scale, scale, scale)
+
+        let center = SCNVector3(
+            (minBounds.x + maxBounds.x) * 0.5,
+            (minBounds.y + maxBounds.y) * 0.5,
+            (minBounds.z + maxBounds.z) * 0.5
+        )
+        node.pivot = SCNMatrix4MakeTranslation(center.x, center.y, center.z)
     }
 }

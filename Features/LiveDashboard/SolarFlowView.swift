@@ -167,12 +167,19 @@ struct SolarFlowView: View {
                 HStack(spacing: 10) {
                     BatteryIndicator(level: snapshot.modeledSOC / 100)
                         .frame(width: 58, height: 18)
-                    Text("\(Int(snapshot.modeledSOC))%")
+                        .opacity(isSocEstimated ? 0.55 : 1)
+                    Text(socText)
                         .font(.system(size: 16, weight: .heavy, design: .rounded))
-                        .foregroundStyle(socColor)
+                        .foregroundStyle(isSocEstimated ? Theme.textSecondary : socColor)
                     Text(String(format: "%.1fV", snapshot.batteryVoltage))
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(Theme.flowCyan)
+                }
+
+                if isSocEstimated {
+                    Text("SOC nur geschatzt (Batterietyp fehlt)")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
             .padding(.vertical, 8)
@@ -231,6 +238,17 @@ struct SolarFlowView: View {
         snapshot.modeledSOC > 60 ? Theme.stateGreen
             : snapshot.modeledSOC > 25 ? Theme.solarAmber
             : Theme.warnCoral
+    }
+
+    private var isSocEstimated: Bool {
+        snapshot.socConfidence < 0.7
+    }
+
+    private var socText: String {
+        if isSocEstimated {
+            return "~\(Int(snapshot.modeledSOC))%"
+        }
+        return "\(Int(snapshot.modeledSOC))%"
     }
 
 }
