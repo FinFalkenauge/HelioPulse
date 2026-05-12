@@ -34,6 +34,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private var hexPollTask: Task<Void, Never>?
     private var readableCharacteristics: [CBCharacteristic] = []
     private var writableCharacteristics: [CBCharacteristic] = []
+    private var preferredWritableCharacteristic: CBCharacteristic?
     private var textBuffer = ""
     private var hexBuffer = ""
     private var hasReceivedAnyPayloadSinceConnect = false
@@ -87,6 +88,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         rxCharacteristic = nil
         readableCharacteristics.removeAll()
         writableCharacteristics.removeAll()
+        preferredWritableCharacteristic = nil
         hasReceivedAnyPayloadSinceConnect = false
         hasReceivedTelemetrySinceConnect = false
         textBuffer.removeAll(keepingCapacity: true)
@@ -143,6 +145,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         hasReceivedTelemetrySinceConnect = false
         readableCharacteristics.removeAll()
         writableCharacteristics.removeAll()
+        preferredWritableCharacteristic = nil
         textBuffer.removeAll(keepingCapacity: true)
         hexBuffer.removeAll(keepingCapacity: true)
         logger.notice("Connected to peripheral \(peripheral.identifier.uuidString, privacy: .public)")
@@ -183,6 +186,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         rxCharacteristic = nil
         readableCharacteristics.removeAll()
         writableCharacteristics.removeAll()
+        preferredWritableCharacteristic = nil
         retryOrRescan(on: central)
     }
     
@@ -239,6 +243,12 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                     }
                     if characteristic.properties.contains(.write) || characteristic.properties.contains(.writeWithoutResponse) {
                         writableCharacteristics.append(characteristic)
+                        if preferredWritableCharacteristic == nil {
+                            preferredWritableCharacteristic = characteristic
+                        }
+                        if characteristic.uuid.uuidString == "97580003-DDF1-48BE-B73E-182664615D8E" {
+                            preferredWritableCharacteristic = characteristic
+                        }
                     }
                     if characteristic.properties.contains(.read) {
                         readableCharacteristics.append(characteristic)
@@ -275,7 +285,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
         
         // Parse incoming Victron telemetry data
-        if let snapshot = parseVictronData(data) {
+        if let snapshot = parseVictronData(data, characteristic: characteristic) {
             hasReceivedTelemetrySinceConnect = true
             self.parseMissCount = 0
             logger.notice("Telemetry parsed solarW=\(Int(snapshot.solarPower)) battV=\(String(format: "%.2f", snapshot.batteryVoltage), privacy: .public) loadA=\(String(format: "%.2f", snapshot.loadCurrent), privacy: .public)")
@@ -299,9 +309,13 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     }
     
     /// Parse Victron VE.Direct BLE frame into TelemetrySnapshot.
-    private func parseVictronData(_ data: Data) -> TelemetrySnapshot? {
+    private func parseVictronData(_ data: Data, characteristic: CBCharacteristic) -> TelemetrySnapshot? {
         if let hexSnapshot = parseHexVictronData(data) {
             return hexSnapshot
+        }
+
+        if let binarySnapshot = parseObservedBinaryPayload(data, characteristic: characteristic) {
+            return binarySnapshot
         }
 
         // Try to parse as Victron register frame
@@ -343,6 +357,61 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
         
         return nil
+    }
+
+    private func parseObservedBinaryPayload(_ data: Data, characteristic: CBCharacteristic) -> TelemetrySnapshot? {
+        let bytes = Array(data)
+        guard bytes.count == 20 else { return nil }
+        guard bytes[0] == 0xFF, bytes[1] == 0x18 else { return nil }
+
+        let words = stride(from: 0, to: bytes.count, by: 2).map { index -> UInt16 in
+            UInt16(bytes[index]) | (UInt16(bytes[index + 1]) << 8)
+        }
+        guard words.count >= 7 else { return nil }
+
+        let rawVoltage = Int(words[4])
+        let rawCurrent = Int(words[6])
+        let rawState = Int(words[3])
+
+        let batteryVoltage: Double
+        if (90...180).contains(rawVoltage) {
+            batteryVoltage = Double(rawVoltage) / 10.0
+        } else if (900...1800).contains(rawVoltage) {
+            batteryVoltage = Double(rawVoltage) / 100.0
+        } else if (9000...18000).contains(rawVoltage) {
+            batteryVoltage = Double(rawVoltage) / 1000.0
+        } else {
+            return nil
+        }
+
+        let batteryCurrent: Double
+        if (0...5000).contains(rawCurrent) {
+            batteryCurrent = Double(rawCurrent) / 10.0
+        } else {
+            batteryCurrent = 0
+        }
+
+        let estimatedSoc = max(0, min(100, ((batteryVoltage - 11.8) / 2.6) * 100))
+        let chargeState = mapHexChargeState(rawState)
+        let solarPower = max(0, batteryVoltage * max(0, batteryCurrent))
+
+        logger.debug("Binary fallback parsed from char=\(characteristic.uuid.uuidString, privacy: .public) rawV=\(rawVoltage) rawI=\(rawCurrent) state=\(rawState)")
+
+        return TelemetrySnapshot(
+            id: UUID(),
+            timestamp: .now,
+            solarPower: solarPower,
+            solarVoltage: batteryVoltage,
+            solarCurrent: max(0, batteryCurrent),
+            batteryVoltage: batteryVoltage,
+            batteryCurrent: batteryCurrent,
+            loadCurrent: max(0, batteryCurrent * 0.2),
+            chargeState: chargeState,
+            modeledSOC: estimatedSoc,
+            socConfidence: 0.35,
+            driveMode: false,
+            primarySource: .solar
+        )
     }
 
     private func parseHexVictronData(_ data: Data) -> TelemetrySnapshot? {
@@ -583,7 +652,14 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
 
         guard let data = frame.data(using: .ascii) else { return }
 
-        for characteristic in writableCharacteristics {
+        let destinations: [CBCharacteristic]
+        if let preferredWritableCharacteristic {
+            destinations = [preferredWritableCharacteristic]
+        } else {
+            destinations = [writableCharacteristics[0]]
+        }
+
+        for characteristic in destinations {
             let type: CBCharacteristicWriteType = characteristic.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
             peripheral.writeValue(data, for: characteristic, type: type)
         }
