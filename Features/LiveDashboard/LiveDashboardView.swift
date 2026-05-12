@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LiveDashboardView: View {
     @ObservedObject var viewModel: HelioPulseDashboardViewModel
+    @State private var calibrationSOC: Double = 60
 
     var body: some View {
         ZStack {
@@ -11,6 +12,7 @@ struct LiveDashboardView: View {
                 VStack(spacing: 14) {
                     connectionCard
                     batterySetupCard
+                    calibrationCard
                     SolarFlowView(snapshot: viewModel.snapshot)
                     if viewModel.hasLiveData {
                         confidenceCard
@@ -132,6 +134,77 @@ struct LiveDashboardView: View {
             }
             .foregroundStyle(Theme.flowCyan)
             .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard()
+    }
+
+    private var calibrationCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("SOC-Feinkalibrierung")
+                .font(.custom("AvenirNext-DemiBold", size: 16))
+                .foregroundStyle(Theme.textPrimary)
+
+            Text("Setze einen bekannten SOC bei aktueller Ruhe-Spannung. Die App lernt daraus einen Offset pro Batterietyp.")
+                .font(.custom("AvenirNext-Regular", size: 13))
+                .foregroundStyle(Theme.textSecondary)
+
+            HStack(spacing: 12) {
+                Text("Bekannter SOC")
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+
+                Slider(value: $calibrationSOC, in: 0...100, step: 1)
+
+                Text("\(Int(calibrationSOC))%")
+                    .font(.custom("AvenirNext-DemiBold", size: 13))
+                    .foregroundStyle(Theme.textPrimary)
+                    .frame(width: 52, alignment: .trailing)
+            }
+
+            HStack(spacing: 8) {
+                Label(String(format: "%.2fV", viewModel.snapshot.batteryVoltage), systemImage: "bolt.horizontal.circle")
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.flowCyan)
+
+                if viewModel.isRestingForCalibration {
+                    Label("Ruhephase", systemImage: "checkmark.seal.fill")
+                        .font(.custom("AvenirNext-Medium", size: 12))
+                        .foregroundStyle(Theme.stateGreen)
+                } else {
+                    Label("Unter Last", systemImage: "exclamationmark.triangle.fill")
+                        .font(.custom("AvenirNext-Medium", size: 12))
+                        .foregroundStyle(Theme.solarAmber)
+                }
+
+                Spacer()
+
+                Text(String(format: "Offset %.1f%%", viewModel.socCalibrationOffset))
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+
+            HStack(spacing: 10) {
+                Button("Kalibrieren") {
+                    viewModel.applySocCalibration(knownSOC: calibrationSOC)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.flowCyan)
+                .disabled(viewModel.batteryChemistry == .unknown)
+
+                Button("Reset") {
+                    viewModel.resetSocCalibration()
+                }
+                .buttonStyle(.bordered)
+                .tint(Theme.warnCoral)
+                .disabled(viewModel.batteryChemistry == .unknown)
+            }
+
+            if viewModel.batteryChemistry == .unknown {
+                Text("Wahle zuerst einen Batterietyp fur die Feinkalibrierung.")
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard()
