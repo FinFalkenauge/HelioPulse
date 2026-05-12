@@ -96,15 +96,28 @@ struct VictronRegisterParser {
     static func parseTextFrame(_ text: String) -> [Register: Int]? {
         var registers: [Register: Int] = [:]
         
-        let lines = text.split(separator: "\n")
+        let lines = text.components(separatedBy: .newlines)
         for line in lines {
-            let parts = line.split(separator: "=", maxSplits: 1)
-            guard parts.count == 2 else {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedLine.isEmpty else {
+                continue
+            }
+
+            let parts: [String]
+            if let tabIndex = trimmedLine.firstIndex(of: "\t") {
+                let keyPart = String(trimmedLine[..<tabIndex])
+                let valuePart = String(trimmedLine[trimmedLine.index(after: tabIndex)...])
+                parts = [keyPart, valuePart]
+            } else if let eqIndex = trimmedLine.firstIndex(of: "=") {
+                let keyPart = String(trimmedLine[..<eqIndex])
+                let valuePart = String(trimmedLine[trimmedLine.index(after: eqIndex)...])
+                parts = [keyPart, valuePart]
+            } else {
                 continue
             }
 
             let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
-            let valueStr = String(parts[1]).trimmingCharacters(in: .whitespaces)
+            let valueStr = parts[1].trimmingCharacters(in: .whitespaces)
             guard !key.isEmpty, let value = Int(valueStr) else {
                 continue
             }

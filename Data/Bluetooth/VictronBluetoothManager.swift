@@ -28,7 +28,9 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private var reconnectAttempts = 0
     private let maxReconnectAttempts = 5
     private var scanTimeoutTask: Task<Void, Never>?
+    private var noDataTimeoutTask: Task<Void, Never>?
     private var textBuffer = ""
+    private var hasReceivedDataSinceConnect = false
     
     override init() {
         super.init()
@@ -57,12 +59,15 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         centralManager?.stopScan()
         scanTimeoutTask?.cancel()
         scanTimeoutTask = nil
+        noDataTimeoutTask?.cancel()
+        noDataTimeoutTask = nil
         if let peripheral = connectedPeripheral {
             centralManager?.cancelPeripheralConnection(peripheral)
         }
         connectedPeripheral = nil
         txCharacteristic = nil
         rxCharacteristic = nil
+        hasReceivedDataSinceConnect = false
         onConnectionStateChange?(.idle)
     }
     
@@ -105,9 +110,11 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         didConnect peripheral: CBPeripheral
     ) {
         reconnectAttempts = 0
+        hasReceivedDataSinceConnect = false
         onConnectionStateChange?(.connected)
-        // Discover services
-        peripheral.discoverServices([victronServiceCustomUUID])
+        // Discover all services for maximum compatibility across Victron firmware variants.
+        peripheral.discoverServices(nil)
+        scheduleNoDataTimeout(for: peripheral, on: central)
     }
     
     func centralManager(
@@ -125,6 +132,9 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         error: Error?
     ) {
         onConnectionStateChange?(.disconnected(error))
+        noDataTimeoutTask?.cancel()
+        noDataTimeoutTask = nil
+        hasReceivedDataSinceConnect = false
         connectedPeripheral = nil
         txCharacteristic = nil
         rxCharacteristic = nil
@@ -142,11 +152,13 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             return
         }
         
-        // Look for Victron custom service
+        // Discover characteristics on all services. Some devices expose telemetry on unexpected UUIDs.
         if let services = peripheral.services {
             for service in services {
                 if service.uuid == victronServiceCustomUUID {
                     peripheral.discoverCharacteristics([victronTxUUID, victronRxUUID], for: service)
+                } else {
+                    peripheral.discoverCharacteristics(nil, for: service)
                 }
             }
         }
@@ -171,6 +183,14 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                 } else if characteristic.uuid == victronRxUUID {
                     rxCharacteristic = characteristic
                     peripheral.setNotifyValue(true, for: characteristic)
+                } else {
+                    // Fallback: subscribe/read any characteristic that can provide telemetry.
+                    if characteristic.properties.contains(.notify) || characteristic.properties.contains(.indicate) {
+                        peripheral.setNotifyValue(true, for: characteristic)
+                    }
+                    if characteristic.properties.contains(.read) {
+                        peripheral.readValue(for: characteristic)
+                    }
                 }
             }
         }
@@ -191,6 +211,9 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         
         // Parse incoming Victron telemetry data
         if let snapshot = parseVictronData(data) {
+            hasReceivedDataSinceConnect = true
+            noDataTimeoutTask?.cancel()
+            noDataTimeoutTask = nil
             continuation?.yield(snapshot)
         }
     }
@@ -260,6 +283,17 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             central.connect(peripheral, options: nil)
         } else {
             startScan(on: central)
+        }
+    }
+
+    private func scheduleNoDataTimeout(for peripheral: CBPeripheral, on central: CBCentralManager) {
+        noDataTimeoutTask?.cancel()
+        noDataTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(12))
+            guard let self else { return }
+            guard self.connectedPeripheral?.identifier == peripheral.identifier else { return }
+            guard !self.hasReceivedDataSinceConnect else { return }
+            central.cancelPeripheralConnection(peripheral)
         }
     }
 }
