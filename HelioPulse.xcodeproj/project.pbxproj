@@ -13,6 +13,7 @@
 		47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */; };
 		5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */; };
 		5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */; };
+		5E8D5C73B9A31A6F55278CBF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92FB60E0580764B40D8A59FD /* Assets.xcassets */; };
 		887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */; };
 		AB9288D42E716F4071FCF575 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */; };
 		DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F346FD70F9B4189513732A5A /* Theme.swift */; };
@@ -25,6 +26,7 @@
 		2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
 		5AAA52FF4F8682C64C79B497 /* HelioPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HelioPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySnapshot.swift; sourceTree = "<group>"; };
+		92FB60E0580764B40D8A59FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9B9EEBAE0CD387023457445B /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
 		B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastScenario.swift; sourceTree = "<group>"; };
 		C3DFD4B83D8D988EC9741191 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
@@ -35,6 +37,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		0C877807B03EB6D42FE21DFD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				92FB60E0580764B40D8A59FD /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		2915DDF7C3BA38C8EBB49C02 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
@@ -77,6 +87,7 @@
 				A3C2E07D71A52739E3A19DC0 /* DesignSystem */,
 				6CE018A63C2E28DBAC328780 /* Features */,
 				2915DDF7C3BA38C8EBB49C02 /* Persistence */,
+				0C877807B03EB6D42FE21DFD /* Resources */,
 				64C5FC5661E5DC8EFFAC91B7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -149,6 +160,7 @@
 			buildConfigurationList = 78898D555C8649A309EC3C03 /* Build configuration list for PBXNativeTarget "HelioPulse" */;
 			buildPhases = (
 				72FB1DBBB5710896B62A01A6 /* Sources */,
+				104E7543ED4FEA30236352AD /* Resources */,
 			);
 			buildRules = (
 			);
@@ -190,6 +202,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		104E7543ED4FEA30236352AD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E8D5C73B9A31A6F55278CBF /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		72FB1DBBB5710896B62A01A6 /* Sources */ = {
@@ -282,10 +305,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -360,10 +385,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
