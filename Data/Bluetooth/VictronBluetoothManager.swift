@@ -1,5 +1,6 @@
 import Foundation
 import CoreBluetooth
+import OSLog
 
 /// Manages Bluetooth communication with Victron SmartSolar MPPT charge controllers.
 /// Handles scanning, connection, and register reading via BLE.
@@ -29,12 +30,18 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private let maxReconnectAttempts = 5
     private var scanTimeoutTask: Task<Void, Never>?
     private var noDataTimeoutTask: Task<Void, Never>?
+    private var readPollTask: Task<Void, Never>?
+    private var readableCharacteristics: [CBCharacteristic] = []
     private var textBuffer = ""
     private var hasReceivedDataSinceConnect = false
+    private var payloadPreviewCount = 0
+    private var parseMissCount = 0
+    private let logger = Logger(subsystem: "com.heliopulse.app", category: "BLE")
     
     override init() {
         super.init()
         self.centralManager = CBCentralManager(delegate: self, queue: .main)
+        logger.notice("VictronBluetoothManager initialized")
     }
     
     /// Start scanning for Victron MPPT devices and stream telemetry.
@@ -42,6 +49,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         return AsyncStream { continuation in
             self.continuation = continuation
             self.onTerminate = { continuation.finish() }
+            self.logger.notice("Telemetry stream opened")
             
             // Start scanning for Victron devices
             if let centralManager = centralManager, centralManager.state == .poweredOn {
@@ -49,6 +57,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             }
 
             continuation.onTermination = { _ in
+                self.logger.notice("Telemetry stream terminated")
                 self.stopScanning()
             }
         }
@@ -56,24 +65,31 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     
     /// Stop scanning and disconnect.
     func stopScanning() {
+        logger.notice("Stop scanning/disconnect requested")
         centralManager?.stopScan()
         scanTimeoutTask?.cancel()
         scanTimeoutTask = nil
         noDataTimeoutTask?.cancel()
         noDataTimeoutTask = nil
+        readPollTask?.cancel()
+        readPollTask = nil
         if let peripheral = connectedPeripheral {
             centralManager?.cancelPeripheralConnection(peripheral)
         }
         connectedPeripheral = nil
         txCharacteristic = nil
         rxCharacteristic = nil
+        readableCharacteristics.removeAll()
         hasReceivedDataSinceConnect = false
+        payloadPreviewCount = 0
+        parseMissCount = 0
         onConnectionStateChange?(.idle)
     }
     
     // MARK: - CBCentralManagerDelegate
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        logger.notice("Central state changed: \(self.describe(state: central.state), privacy: .public)")
         if central.state == .poweredOn, continuation != nil {
             startScan(on: central)
         } else if central.state != .poweredOn {
@@ -89,12 +105,15 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     ) {
         // Look for Victron MPPT devices (name typically contains "Victron" or has known UUIDs)
         // Match known Victron device name prefixes (SmartSolar, MPPT, BlueSolar, VE.Direct, Victron)
+        let discoveredName = peripheral.name ?? "<unknown>"
+        logger.debug("Discovered peripheral name=\(discoveredName, privacy: .public) rssi=\(rssi.intValue)")
         if let name = peripheral.name,
            name.localizedCaseInsensitiveContains("Victron") ||
            name.localizedCaseInsensitiveContains("MPPT") ||
            name.localizedCaseInsensitiveContains("SmartSolar") ||
            name.localizedCaseInsensitiveContains("BlueSolar") ||
            name.localizedCaseInsensitiveContains("VE.Direct") {
+            logger.notice("Selected peripheral \(name, privacy: .public) id=\(peripheral.identifier.uuidString, privacy: .public)")
             central.stopScan()
             scanTimeoutTask?.cancel()
             scanTimeoutTask = nil
@@ -111,10 +130,13 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     ) {
         reconnectAttempts = 0
         hasReceivedDataSinceConnect = false
+        readableCharacteristics.removeAll()
+        logger.notice("Connected to peripheral \(peripheral.identifier.uuidString, privacy: .public)")
         onConnectionStateChange?(.connected)
         // Discover all services for maximum compatibility across Victron firmware variants.
         peripheral.discoverServices(nil)
         scheduleNoDataTimeout(for: peripheral, on: central)
+        startReadPolling(for: peripheral)
     }
     
     func centralManager(
@@ -122,6 +144,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
+        logger.error("Failed to connect: \(error?.localizedDescription ?? "unknown", privacy: .public)")
         onConnectionStateChange?(.disconnected(error))
         retryOrRescan(on: central)
     }
@@ -131,13 +154,17 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
+        logger.warning("Disconnected from peripheral \(peripheral.identifier.uuidString, privacy: .public) reason=\(error?.localizedDescription ?? "none", privacy: .public)")
         onConnectionStateChange?(.disconnected(error))
         noDataTimeoutTask?.cancel()
         noDataTimeoutTask = nil
+        readPollTask?.cancel()
+        readPollTask = nil
         hasReceivedDataSinceConnect = false
         connectedPeripheral = nil
         txCharacteristic = nil
         rxCharacteristic = nil
+        readableCharacteristics.removeAll()
         retryOrRescan(on: central)
     }
     
@@ -148,13 +175,15 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         didDiscoverServices error: Error?
     ) {
         guard error == nil else {
-            print("Error discovering services: \(error!)")
+            logger.error("Service discovery error: \(error!.localizedDescription, privacy: .public)")
             return
         }
+        logger.notice("Services discovered count=\(peripheral.services?.count ?? 0)")
         
         // Discover characteristics on all services. Some devices expose telemetry on unexpected UUIDs.
         if let services = peripheral.services {
             for service in services {
+                logger.debug("Discovering characteristics service=\(service.uuid.uuidString, privacy: .public)")
                 if service.uuid == victronServiceCustomUUID {
                     peripheral.discoverCharacteristics([victronTxUUID, victronRxUUID], for: service)
                 } else {
@@ -170,12 +199,14 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         error: Error?
     ) {
         guard error == nil else {
-            print("Error discovering characteristics: \(error!)")
+            logger.error("Characteristic discovery error for service=\(service.uuid.uuidString, privacy: .public): \(error!.localizedDescription, privacy: .public)")
             return
         }
+        logger.notice("Characteristics discovered service=\(service.uuid.uuidString, privacy: .public) count=\(service.characteristics?.count ?? 0)")
         
         if let characteristics = service.characteristics {
             for characteristic in characteristics {
+                logger.debug("Characteristic uuid=\(characteristic.uuid.uuidString, privacy: .public) props=\(characteristic.properties.rawValue)")
                 if characteristic.uuid == victronTxUUID {
                     txCharacteristic = characteristic
                     // Request notifications for incoming data
@@ -189,6 +220,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                         peripheral.setNotifyValue(true, for: characteristic)
                     }
                     if characteristic.properties.contains(.read) {
+                        readableCharacteristics.append(characteristic)
                         peripheral.readValue(for: characteristic)
                     }
                 }
@@ -205,8 +237,14 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         error: Error?
     ) {
         guard error == nil, let data = characteristic.value else {
-            print("Error reading characteristic: \(error?.localizedDescription ?? "Unknown")")
+            logger.error("Read/update error characteristic=\(characteristic.uuid.uuidString, privacy: .public): \(error?.localizedDescription ?? "unknown", privacy: .public)")
             return
+        }
+
+        self.payloadPreviewCount += 1
+        if self.payloadPreviewCount <= 8 || self.payloadPreviewCount % 50 == 0 {
+            let preview = self.payloadPreview(for: data)
+            logger.debug("Payload #\(self.payloadPreviewCount) char=\(characteristic.uuid.uuidString, privacy: .public) bytes=\(data.count) preview=\(preview, privacy: .public)")
         }
         
         // Parse incoming Victron telemetry data
@@ -214,7 +252,14 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             hasReceivedDataSinceConnect = true
             noDataTimeoutTask?.cancel()
             noDataTimeoutTask = nil
+            self.parseMissCount = 0
+            logger.notice("Telemetry parsed solarW=\(Int(snapshot.solarPower)) battV=\(String(format: "%.2f", snapshot.batteryVoltage), privacy: .public) loadA=\(String(format: "%.2f", snapshot.loadCurrent), privacy: .public)")
             continuation?.yield(snapshot)
+        } else {
+            self.parseMissCount += 1
+            if self.parseMissCount <= 6 || self.parseMissCount % 25 == 0 {
+                logger.debug("Payload parse miss count=\(self.parseMissCount)")
+            }
         }
     }
     
@@ -236,7 +281,9 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
         
         // Fall back to parsing as text frame
-        if let text = String(data: data, encoding: .utf8) {
+        let rawText = String(data: data, encoding: .utf8) ?? sanitizedASCIIString(from: data)
+        if !rawText.isEmpty {
+            let text = rawText
             textBuffer.append(text)
             if textBuffer.count > 4096 {
                 textBuffer.removeFirst(textBuffer.count - 4096)
@@ -262,7 +309,22 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         return nil
     }
 
+    private func sanitizedASCIIString(from data: Data) -> String {
+        let mapped = data.map { byte -> Character in
+            switch byte {
+            case 9, 10, 13:
+                return Character(UnicodeScalar(byte))
+            case 32...126:
+                return Character(UnicodeScalar(byte))
+            default:
+                return " "
+            }
+        }
+        return String(mapped)
+    }
+
     private func startScan(on central: CBCentralManager) {
+        logger.notice("Start scanning for Victron peripherals")
         onConnectionStateChange?(.scanning)
         // Scan without UUID filter so Victron devices are discoverable regardless of firmware version.
         // Some MPPT models don't advertise the custom service UUID until connected.
@@ -272,6 +334,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             try? await Task.sleep(for: .seconds(15))
             guard let self else { return }
             if self.connectedPeripheral == nil {
+                self.logger.warning("Scan timeout reached, restarting scan")
                 central.stopScan()
                 self.startScan(on: central)
             }
@@ -279,9 +342,10 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     }
 
     private func retryOrRescan(on central: CBCentralManager) {
-        reconnectAttempts += 1
-        guard reconnectAttempts <= maxReconnectAttempts else {
-            reconnectAttempts = 0
+        self.reconnectAttempts += 1
+        logger.notice("Retry/rescan attempt=\(self.reconnectAttempts)")
+        guard self.reconnectAttempts <= maxReconnectAttempts else {
+            self.reconnectAttempts = 0
             startScan(on: central)
             return
         }
@@ -300,7 +364,46 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             guard let self else { return }
             guard self.connectedPeripheral?.identifier == peripheral.identifier else { return }
             guard !self.hasReceivedDataSinceConnect else { return }
+            self.logger.warning("No telemetry within timeout; forcing reconnect")
             central.cancelPeripheralConnection(peripheral)
+        }
+    }
+
+    private func startReadPolling(for peripheral: CBPeripheral) {
+        readPollTask?.cancel()
+        readPollTask = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard self.connectedPeripheral?.identifier == peripheral.identifier else { continue }
+                if !self.readableCharacteristics.isEmpty {
+                    self.logger.debug("Polling readable characteristics count=\(self.readableCharacteristics.count)")
+                }
+                for characteristic in self.readableCharacteristics {
+                    peripheral.readValue(for: characteristic)
+                }
+            }
+        }
+    }
+
+    private func payloadPreview(for data: Data) -> String {
+        let ascii = sanitizedASCIIString(from: data)
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let asciiPreview = String(ascii.prefix(120))
+        return asciiPreview.isEmpty ? "<non-ascii payload>" : asciiPreview
+    }
+
+    private func describe(state: CBManagerState) -> String {
+        switch state {
+        case .unknown: return "unknown"
+        case .resetting: return "resetting"
+        case .unsupported: return "unsupported"
+        case .unauthorized: return "unauthorized"
+        case .poweredOff: return "poweredOff"
+        case .poweredOn: return "poweredOn"
+        @unknown default: return "other"
         }
     }
 }

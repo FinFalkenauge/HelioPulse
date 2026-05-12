@@ -22,7 +22,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.service.onConnectionStateText = { [weak self] text in
             Task { @MainActor in
                 self?.connectionState = text
-                self?.isConnected = text.contains("Verbunden")
+                self?.isConnected = text == "Bluetooth: Verbunden"
             }
         }
     }

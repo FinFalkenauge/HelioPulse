@@ -224,7 +224,7 @@ struct SolarFlowView: View {
 
     private var loadSection: some View {
         VStack(spacing: 8) {
-            Label("Verbraucher", systemImage: "plug.fill")
+            Label("Verbraucher", systemImage: "bolt.fill")
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(Theme.textSecondary)
 
