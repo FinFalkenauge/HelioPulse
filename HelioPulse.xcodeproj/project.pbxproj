@@ -15,7 +15,9 @@
 		5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */; };
 		5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */; };
 		5E8D5C73B9A31A6F55278CBF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92FB60E0580764B40D8A59FD /* Assets.xcassets */; };
+		71A00E8156803673DE7A0D28 /* VictronRegisterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331302606861554607125546 /* VictronRegisterParser.swift */; };
 		887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */; };
+		8C66BF12B476B626B1DC046B /* VictronBluetoothManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07021623A71299EADDDDB424 /* VictronBluetoothManager.swift */; };
 		AB9288D42E716F4071FCF575 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */; };
 		DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F346FD70F9B4189513732A5A /* Theme.swift */; };
 		EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9EEBAE0CD387023457445B /* TrendsView.swift */; };
@@ -23,8 +25,10 @@
 
 /* Begin PBXFileReference section */
 		053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelioPulseApp.swift; sourceTree = "<group>"; };
+		07021623A71299EADDDDB424 /* VictronBluetoothManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronBluetoothManager.swift; sourceTree = "<group>"; };
 		102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothTelemetryService.swift; sourceTree = "<group>"; };
 		2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
+		331302606861554607125546 /* VictronRegisterParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronRegisterParser.swift; sourceTree = "<group>"; };
 		5AAA52FF4F8682C64C79B497 /* HelioPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HelioPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySnapshot.swift; sourceTree = "<group>"; };
 		92FB60E0580764B40D8A59FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -107,6 +111,8 @@
 			isa = PBXGroup;
 			children = (
 				102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */,
+				07021623A71299EADDDDB424 /* VictronBluetoothManager.swift */,
+				331302606861554607125546 /* VictronRegisterParser.swift */,
 			);
 			path = Bluetooth;
 			sourceTree = "<group>";
@@ -233,6 +239,8 @@
 				47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */,
 				DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */,
 				EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */,
+				8C66BF12B476B626B1DC046B /* VictronBluetoothManager.swift in Sources */,
+				71A00E8156803673DE7A0D28 /* VictronRegisterParser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -13,7 +13,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     private let store = TelemetryStore()
     private var streamTask: Task<Void, Never>?
 
-    init(service: BluetoothTelemetryService = MockBluetoothTelemetryService()) {
+    init(service: BluetoothTelemetryService = VictronBluetoothTelemetryService()) {
         self.service = service
     }
 
