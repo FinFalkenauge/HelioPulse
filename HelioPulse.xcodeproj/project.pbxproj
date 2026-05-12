@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0C675355786BC1E2636E3FB4 /* SolarFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9310893DEC356104F0E7170 /* SolarFlowView.swift */; };
 		0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */; };
 		194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */; };
 		1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DFD4B83D8D988EC9741191 /* ForecastView.swift */; };
@@ -33,6 +34,7 @@
 		7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySnapshot.swift; sourceTree = "<group>"; };
 		92FB60E0580764B40D8A59FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9B9EEBAE0CD387023457445B /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
+		A9310893DEC356104F0E7170 /* SolarFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarFlowView.swift; sourceTree = "<group>"; };
 		B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastScenario.swift; sourceTree = "<group>"; };
 		C3DFD4B83D8D988EC9741191 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
 		C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryStore.swift; sourceTree = "<group>"; };
@@ -121,6 +123,7 @@
 			isa = PBXGroup;
 			children = (
 				2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */,
+				A9310893DEC356104F0E7170 /* SolarFlowView.swift */,
 			);
 			path = LiveDashboard;
 			sourceTree = "<group>";
@@ -238,6 +241,7 @@
 				487F80C647EB59077C9AE44B /* HelioPulseDashboardViewModel.swift in Sources */,
 				5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */,
 				AB9288D42E716F4071FCF575 /* RootView.swift in Sources */,
+				0C675355786BC1E2636E3FB4 /* SolarFlowView.swift in Sources */,
 				194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */,
 				47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */,
 				DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */,
