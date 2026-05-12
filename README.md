@@ -48,3 +48,11 @@ If additional charge or load paths bypass the MPPT measurement, confidence is re
 4. `git branch -M main`
 5. `git remote add origin <your-repo-url>`
 6. `git push -u origin main`
+
+## Internal Test Checklist
+
+- Connect to a real Victron SmartSolar MPPT and verify live values update every few seconds.
+- Toggle Bluetooth off/on while app is running and confirm reconnect without app restart.
+- Put app in background for 2 minutes, return to foreground, and verify data flow resumes.
+- Validate charts and forecast update with changing solar input.
+- Verify orientation behavior on iPhone and iPad in all supported orientations.

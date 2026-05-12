@@ -38,7 +38,6 @@ struct VictronRegisterParser {
         let solarPower = Double(registers[.chargePower] ?? 0)
         let stateValue = registers[.chargeState] ?? 0
         let modeledSOC = Double(registers[.stateOfCharge] ?? 50)
-        let rssi = Int16(registers[.signalStrength] ?? -70)
         
         // Map charge state
         let chargeState: ChargeState
@@ -100,10 +99,13 @@ struct VictronRegisterParser {
         let lines = text.split(separator: "\n")
         for line in lines {
             let parts = line.split(separator: "=", maxSplits: 1)
-            guard parts.count == 2,
-                  let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased() as? String,
-                  let valueStr = String(parts[1]).trimmingCharacters(in: .whitespaces) as? String,
-                  let value = Int(valueStr) else {
+            guard parts.count == 2 else {
+                continue
+            }
+
+            let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
+            let valueStr = String(parts[1]).trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty, let value = Int(valueStr) else {
                 continue
             }
             

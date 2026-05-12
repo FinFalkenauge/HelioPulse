@@ -4,14 +4,19 @@ import CoreBluetooth
 /// Manages Bluetooth communication with Victron SmartSolar MPPT charge controllers.
 /// Handles scanning, connection, and register reading via BLE.
 class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+    enum ConnectionState {
+        case idle
+        case scanning
+        case connecting
+        case connected
+        case disconnected(Error?)
+    }
     
     private var centralManager: CBCentralManager?
     private var connectedPeripheral: CBPeripheral?
     private var continuation: AsyncStream<TelemetrySnapshot>.Continuation?
-    
-    // Victron MPPT Bluetooth identifiers
-    private let victronServiceUUID = CBUUID(string: "180A") // Device Information Service
-    private let victronCharacteristicUUID = CBUUID(string: "2A25") // Serial Number (entry point)
+    private var onTerminate: (() -> Void)?
+    var onConnectionStateChange: ((ConnectionState) -> Void)?
     
     // Custom Victron VE.Direct BLE UUIDs
     private let victronServiceCustomUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -20,6 +25,10 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     
     private var txCharacteristic: CBCharacteristic?
     private var rxCharacteristic: CBCharacteristic?
+    private var reconnectAttempts = 0
+    private let maxReconnectAttempts = 5
+    private var scanTimeoutTask: Task<Void, Never>?
+    private var textBuffer = ""
     
     override init() {
         super.init()
@@ -30,10 +39,15 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     func telemetryStream() -> AsyncStream<TelemetrySnapshot> {
         return AsyncStream { continuation in
             self.continuation = continuation
+            self.onTerminate = { continuation.finish() }
             
             // Start scanning for Victron devices
             if let centralManager = centralManager, centralManager.state == .poweredOn {
-                centralManager.scanForPeripherals(withServices: nil, options: nil)
+                startScan(on: centralManager)
+            }
+
+            continuation.onTermination = { _ in
+                self.stopScanning()
             }
         }
     }
@@ -41,16 +55,24 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     /// Stop scanning and disconnect.
     func stopScanning() {
         centralManager?.stopScan()
+        scanTimeoutTask?.cancel()
+        scanTimeoutTask = nil
         if let peripheral = connectedPeripheral {
             centralManager?.cancelPeripheralConnection(peripheral)
         }
+        connectedPeripheral = nil
+        txCharacteristic = nil
+        rxCharacteristic = nil
+        onConnectionStateChange?(.idle)
     }
     
     // MARK: - CBCentralManagerDelegate
     
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        if central.state == .poweredOn {
-            central.scanForPeripherals(withServices: nil, options: nil)
+        if central.state == .poweredOn, continuation != nil {
+            startScan(on: central)
+        } else if central.state != .poweredOn {
+            onConnectionStateChange?(.disconnected(nil))
         }
     }
     
@@ -61,10 +83,14 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         rssi: NSNumber
     ) {
         // Look for Victron MPPT devices (name typically contains "Victron" or has known UUIDs)
-        if let name = peripheral.name, name.contains("Victron") || name.contains("MPPT") {
+        if let name = peripheral.name,
+           name.localizedCaseInsensitiveContains("Victron") || name.localizedCaseInsensitiveContains("MPPT") {
             central.stopScan()
+            scanTimeoutTask?.cancel()
+            scanTimeoutTask = nil
             connectedPeripheral = peripheral
             peripheral.delegate = self
+            onConnectionStateChange?(.connecting)
             central.connect(peripheral, options: nil)
         }
     }
@@ -73,6 +99,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         _ central: CBCentralManager,
         didConnect peripheral: CBPeripheral
     ) {
+        reconnectAttempts = 0
+        onConnectionStateChange?(.connected)
         // Discover services
         peripheral.discoverServices([victronServiceCustomUUID])
     }
@@ -82,8 +110,20 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
-        // Retry scanning
-        central.scanForPeripherals(withServices: nil, options: nil)
+        onConnectionStateChange?(.disconnected(error))
+        retryOrRescan(on: central)
+    }
+
+    func centralManager(
+        _ central: CBCentralManager,
+        didDisconnectPeripheral peripheral: CBPeripheral,
+        error: Error?
+    ) {
+        onConnectionStateChange?(.disconnected(error))
+        connectedPeripheral = nil
+        txCharacteristic = nil
+        rxCharacteristic = nil
+        retryOrRescan(on: central)
     }
     
     // MARK: - CBPeripheralDelegate
@@ -125,6 +165,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                     peripheral.setNotifyValue(true, for: characteristic)
                 } else if characteristic.uuid == victronRxUUID {
                     rxCharacteristic = characteristic
+                    peripheral.setNotifyValue(true, for: characteristic)
                 }
             }
         }
@@ -167,12 +208,51 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
         
         // Fall back to parsing as text frame
-        if let text = String(data: data, encoding: .utf8),
-           let registers = VictronRegisterParser.parseTextFrame(text) {
-            return VictronRegisterParser.buildSnapshot(registers: registers)
+        if let text = String(data: data, encoding: .utf8) {
+            textBuffer.append(text)
+            if textBuffer.count > 4096 {
+                textBuffer.removeFirst(textBuffer.count - 4096)
+            }
+
+            let lines = textBuffer.components(separatedBy: "\n")
+            if lines.count > 1 {
+                textBuffer = lines.last ?? ""
+                let completeBlock = lines.dropLast().joined(separator: "\n")
+                if let registers = VictronRegisterParser.parseTextFrame(completeBlock) {
+                    return VictronRegisterParser.buildSnapshot(registers: registers)
+                }
+            }
         }
         
-        // Fallback: return mock data to keep app functional during development
-        return .mock
+        return nil
+    }
+
+    private func startScan(on central: CBCentralManager) {
+        onConnectionStateChange?(.scanning)
+        central.scanForPeripherals(withServices: [victronServiceCustomUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        scanTimeoutTask?.cancel()
+        scanTimeoutTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(12))
+            guard let self else { return }
+            if self.connectedPeripheral == nil {
+                central.stopScan()
+                self.startScan(on: central)
+            }
+        }
+    }
+
+    private func retryOrRescan(on central: CBCentralManager) {
+        reconnectAttempts += 1
+        guard reconnectAttempts <= maxReconnectAttempts else {
+            reconnectAttempts = 0
+            startScan(on: central)
+            return
+        }
+
+        if let peripheral = connectedPeripheral {
+            central.connect(peripheral, options: nil)
+        } else {
+            startScan(on: central)
+        }
     }
 }

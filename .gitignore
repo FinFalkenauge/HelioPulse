@@ -19,3 +19,11 @@ Package.resolved
 # Secrets
 .env
 Secrets.xcconfig
+
+# Build artifacts
+*.xcarchive/
+export/
+export-build2/
+*.ipa
+*.mobileprovision
+*.dSYM

@@ -12,11 +12,16 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
     private(set) var isScanning = false
     private var victronManager: VictronBluetoothManager?
     private var mockTask: Task<Void, Never>?
-    private var useMockData = true  // Toggle to switch between real and mock
+    private var useMockData = false  // Real Victron telemetry is default for TestFlight
     
     init() {
         // Initialize Victron manager for real device connection
         self.victronManager = VictronBluetoothManager()
+        self.victronManager?.onConnectionStateChange = { [weak self] state in
+            if case .disconnected = state {
+                self?.isScanning = true
+            }
+        }
     }
     
     func telemetryStream() -> AsyncStream<TelemetrySnapshot> {
