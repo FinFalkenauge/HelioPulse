@@ -83,13 +83,14 @@ struct TrendsView: View {
                     if showBattery {
                         LineMark(
                             x: .value("Zeit", point.timestamp),
-                            y: .value("Batterie", point.batteryVoltage * 25.0)
+                            y: .value("Batterie (skaliert)", scaledBatteryY(point.batteryVoltage))
                         )
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(Theme.stateGreen)
                         .lineStyle(.init(lineWidth: 2.0, dash: [2, 2]))
                     }
                 }
+                .chartYScale(domain: 0...maxPowerForAxis)
 
                 if viewModel.trendPoints.count < 3 {
                     Text("Sammle Verlaufspunkte …")
@@ -105,6 +106,18 @@ struct TrendsView: View {
             }
             .chartYAxis {
                 AxisMarks(position: .leading)
+                if showBattery {
+                    AxisMarks(position: .trailing, values: batteryAxisTicks) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+                            .foregroundStyle(Theme.stateGreen.opacity(0.2))
+                        AxisTick()
+                        AxisValueLabel {
+                            if let scaled = value.as(Double.self) {
+                                Text(String(format: "%.1fV", voltageFromScaledY(scaled)))
+                            }
+                        }
+                    }
+                }
             }
             .frame(height: 240)
         }
@@ -190,5 +203,45 @@ struct TrendsView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private var maxPowerForAxis: Double {
+        let solarMax = viewModel.trendPoints.map(\.solarPower).max() ?? 0
+        let loadMax = viewModel.trendPoints.map(\.loadPower).max() ?? 0
+        let peak = max(solarMax, loadMax)
+        return max(120, peak * 1.15)
+    }
+
+    private var batteryRange: (min: Double, max: Double) {
+        let values = viewModel.trendPoints.map(\.batteryVoltage)
+        guard let minValue = values.min(), let maxValue = values.max() else {
+            return (11.8, 14.4)
+        }
+
+        if abs(maxValue - minValue) < 0.1 {
+            return (minValue - 0.3, maxValue + 0.3)
+        }
+
+        let padding = max(0.05, (maxValue - minValue) * 0.15)
+        return (minValue - padding, maxValue + padding)
+    }
+
+    private var batteryAxisTicks: [Double] {
+        let steps = 4.0
+        let step = maxPowerForAxis / steps
+        return stride(from: 0.0, through: maxPowerForAxis, by: step).map { $0 }
+    }
+
+    private func scaledBatteryY(_ voltage: Double) -> Double {
+        let range = batteryRange
+        let span = max(0.001, range.max - range.min)
+        let normalized = (voltage - range.min) / span
+        return max(0, min(maxPowerForAxis, normalized * maxPowerForAxis))
+    }
+
+    private func voltageFromScaledY(_ scaledY: Double) -> Double {
+        let range = batteryRange
+        let normalized = max(0, min(1, scaledY / maxPowerForAxis))
+        return range.min + normalized * (range.max - range.min)
     }
 }
