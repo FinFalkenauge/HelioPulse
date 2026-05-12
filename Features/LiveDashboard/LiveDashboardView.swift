@@ -10,6 +10,7 @@ struct LiveDashboardView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     connectionCard
+                    batterySetupCard
                     SolarFlowView(snapshot: viewModel.snapshot)
                     if viewModel.hasLiveData {
                         confidenceCard
@@ -66,6 +67,54 @@ struct LiveDashboardView: View {
         .glassCard()
     }
 
+    private var batterySetupCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "battery.100")
+                .foregroundStyle(Theme.solarAmber)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Batterietyp")
+                    .font(.custom("AvenirNext-DemiBold", size: 14))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("SOC wird damit deutlich genauer")
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+
+            Spacer()
+
+            Menu {
+                ForEach(BatteryChemistry.allCases, id: \.self) { chemistry in
+                    Button {
+                        viewModel.setBatteryChemistry(chemistry)
+                    } label: {
+                        if chemistry == viewModel.batteryChemistry {
+                            Label(chemistry.localizedName, systemImage: "checkmark")
+                        } else {
+                            Text(chemistry.localizedName)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(viewModel.batteryChemistry.localizedName)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .font(.custom("AvenirNext-DemiBold", size: 13))
+                .foregroundStyle(Theme.flowCyan)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Theme.flowCyan.opacity(0.14))
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard()
+    }
+
     private var confidenceCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Modell-Konfidenz")
@@ -98,6 +147,7 @@ struct LiveDashboardView: View {
                 qualityChip(title: "Quelle", value: viewModel.snapshot.primarySource.localizedName, tint: Theme.flowCyan)
                 qualityChip(title: "Fahrt", value: viewModel.snapshot.driveMode ? "Ja" : "Nein", tint: viewModel.snapshot.driveMode ? Theme.warnCoral : Theme.stateGreen)
                 qualityChip(title: "Konfidenz", value: "\(Int(viewModel.snapshot.socConfidence * 100))%", tint: Theme.solarAmber)
+                qualityChip(title: "Batterie", value: viewModel.batteryChemistry.localizedName, tint: Theme.flowCyan)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -11,14 +11,21 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     @Published private(set) var hasLiveData: Bool = false
     @Published private(set) var isConnected: Bool = false
     @Published private(set) var isUsingMockData: Bool = false
+    @Published private(set) var batteryChemistry: BatteryChemistry = .unknown
 
     private let service: BluetoothTelemetryService
     private let store = TelemetryStore()
     private var streamTask: Task<Void, Never>?
+    private let defaults = UserDefaults.standard
+    private let batteryChemistryKey = "heliopulse.batteryChemistry"
 
     init(service: BluetoothTelemetryService = VictronBluetoothTelemetryService()) {
         self.service = service
         self.isUsingMockData = service.isMockDataEnabled
+        if let raw = defaults.string(forKey: batteryChemistryKey),
+           let chemistry = BatteryChemistry(rawValue: raw) {
+            self.batteryChemistry = chemistry
+        }
         self.service.onConnectionStateText = { [weak self] text in
             Task { @MainActor in
                 self?.connectionState = text
@@ -49,14 +56,55 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     }
 
     private func update(with snapshot: TelemetrySnapshot) async {
-        self.snapshot = snapshot
+        self.snapshot = calibratedSnapshot(from: snapshot)
         self.hasLiveData = true
         self.connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Verbunden"
         self.isConnected = !isUsingMockData
-        self.lastUpdatedText = Self.relativeTimestamp(from: snapshot.timestamp)
-        await store.append(snapshot)
+        self.lastUpdatedText = Self.relativeTimestamp(from: self.snapshot.timestamp)
+        await store.append(self.snapshot)
         self.trendPoints = await store.trendPoints()
-        self.forecastScenarios = Self.forecast(for: snapshot)
+        self.forecastScenarios = Self.forecast(for: self.snapshot)
+    }
+
+    func setBatteryChemistry(_ chemistry: BatteryChemistry) {
+        batteryChemistry = chemistry
+        defaults.set(chemistry.rawValue, forKey: batteryChemistryKey)
+
+        if hasLiveData {
+            snapshot = calibratedSnapshot(from: snapshot)
+            forecastScenarios = Self.forecast(for: snapshot)
+        }
+    }
+
+    private func calibratedSnapshot(from source: TelemetrySnapshot) -> TelemetrySnapshot {
+        var modeledSOC = source.modeledSOC
+        var socConfidence = source.socConfidence
+
+        let currentMagnitude = abs(source.batteryCurrent)
+        let isResting = currentMagnitude < 0.8 && source.solarPower < 20 && source.loadCurrent < 0.8
+
+        if let typedSoc = batteryChemistry.estimateSOC(voltage: source.batteryVoltage) {
+            modeledSOC = typedSoc
+            socConfidence = isResting ? 0.84 : 0.62
+        } else {
+            socConfidence = min(socConfidence, isResting ? 0.5 : 0.35)
+        }
+
+        return TelemetrySnapshot(
+            id: source.id,
+            timestamp: source.timestamp,
+            solarPower: source.solarPower,
+            solarVoltage: source.solarVoltage,
+            solarCurrent: source.solarCurrent,
+            batteryVoltage: source.batteryVoltage,
+            batteryCurrent: source.batteryCurrent,
+            loadCurrent: source.loadCurrent,
+            chargeState: source.chargeState,
+            modeledSOC: max(0, min(100, modeledSOC)),
+            socConfidence: max(0, min(1, socConfidence)),
+            driveMode: source.driveMode,
+            primarySource: source.primarySource
+        )
     }
 
     private static func forecast(for snapshot: TelemetrySnapshot) -> [ForecastScenario] {

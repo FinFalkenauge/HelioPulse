@@ -11,6 +11,7 @@
 		0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */; };
 		194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */; };
 		1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DFD4B83D8D988EC9741191 /* ForecastView.swift */; };
+		3689CDF1632128157441DBDC /* BatteryChemistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E034C7D52F27D5B11FFC2DD7 /* BatteryChemistry.swift */; };
 		47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */; };
 		487F80C647EB59077C9AE44B /* HelioPulseDashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF1372E863687042635C76B /* HelioPulseDashboardViewModel.swift */; };
 		5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */; };
@@ -46,6 +47,7 @@
 		C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryStore.swift; sourceTree = "<group>"; };
 		D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		DBF1372E863687042635C76B /* HelioPulseDashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelioPulseDashboardViewModel.swift; sourceTree = "<group>"; };
+		E034C7D52F27D5B11FFC2DD7 /* BatteryChemistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryChemistry.swift; sourceTree = "<group>"; };
 		F346FD70F9B4189513732A5A /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		F4C729978F2A302347AF8400 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -147,6 +149,7 @@
 		9F9594F87C85D6EDE5EA69A7 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				E034C7D52F27D5B11FFC2DD7 /* BatteryChemistry.swift */,
 				B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */,
 				7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */,
 			);
@@ -253,6 +256,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3689CDF1632128157441DBDC /* BatteryChemistry.swift in Sources */,
 				5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */,
 				0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */,
 				1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */,
