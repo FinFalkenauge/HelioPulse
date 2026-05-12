@@ -59,6 +59,21 @@ struct ForecastView: View {
                     .foregroundStyle(point.isForecast ? Theme.flowCyan.opacity(0.65) : Theme.flowCyan)
                     .lineStyle(.init(lineWidth: point.isForecast ? 2 : 2.6, dash: point.isForecast ? [5, 4] : [6, 3]))
                 }
+
+                RuleMark(x: .value("Jetzt", Date()))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                    .foregroundStyle(Theme.textPrimary.opacity(0.55))
+                    .annotation(position: .top, alignment: .center) {
+                        Text("Jetzt")
+                            .font(.custom("AvenirNext-DemiBold", size: 11))
+                            .foregroundStyle(Theme.textPrimary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color.black.opacity(0.45))
+                            )
+                    }
             }
             .chartXScale(domain: chartDomain)
             .chartYAxis {
