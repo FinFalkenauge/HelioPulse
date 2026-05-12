@@ -69,6 +69,32 @@ actor TelemetryStore {
         }
     }
 
+    func importVictronHistory(_ payload: VictronHistoryPayload, referenceDate: Date = .now) {
+        let today = calendar.startOfDay(for: referenceDate)
+        if let todayRaw = payload.todayYieldRaw {
+            upsertHistoryDay(
+                dayStart: today,
+                yieldRaw: todayRaw,
+                maxPowerW: payload.maxTodayPowerW
+            )
+        }
+
+        if let yesterdayRaw = payload.yesterdayYieldRaw,
+           let yesterday = calendar.date(byAdding: .day, value: -1, to: today) {
+            upsertHistoryDay(
+                dayStart: yesterday,
+                yieldRaw: yesterdayRaw,
+                maxPowerW: payload.maxYesterdayPowerW
+            )
+        }
+
+        dailyAggregates.sort(by: { $0.dayStart < $1.dayStart })
+        if dailyAggregates.count > maxDailyAggregates {
+            dailyAggregates.removeFirst(dailyAggregates.count - maxDailyAggregates)
+        }
+        saveHistory()
+    }
+
     private func hourlyPointsForLast24h() -> [TrendPoint] {
         let start = Date().addingTimeInterval(-24 * 3600)
         let filtered = snapshots.filter { $0.timestamp >= start }
@@ -141,6 +167,40 @@ actor TelemetryStore {
                 dailyAggregates.removeFirst(dailyAggregates.count - maxDailyAggregates)
             }
         }
+    }
+
+    private func upsertHistoryDay(dayStart: Date, yieldRaw: Int, maxPowerW: Int?) {
+        let yieldWh = normalizedYieldWh(from: yieldRaw)
+        let avgSolarW = max(0, yieldWh / 24.0)
+        let representativeSolarW = max(avgSolarW, Double(maxPowerW ?? 0) * 0.25)
+
+        if let idx = dailyAggregates.firstIndex(where: { calendar.isDate($0.dayStart, inSameDayAs: dayStart) }) {
+            var existing = dailyAggregates[idx]
+            if existing.sampleCount <= 1 {
+                existing.sampleCount = 1
+                existing.solarSum = representativeSolarW
+                dailyAggregates[idx] = existing
+            }
+            return
+        }
+
+        dailyAggregates.append(
+            DailyAggregate(
+                dayStart: dayStart,
+                sampleCount: 1,
+                solarSum: representativeSolarW,
+                loadSum: 0,
+                voltageSum: snapshots.last?.batteryVoltage ?? 12.6
+            )
+        )
+    }
+
+    private func normalizedYieldWh(from raw: Int) -> Double {
+        let asCentiKWhWh = Double(raw) * 10.0
+        if asCentiKWhWh <= 30_000 {
+            return asCentiKWhWh
+        }
+        return Double(raw)
     }
 
     private func loadHistory() {

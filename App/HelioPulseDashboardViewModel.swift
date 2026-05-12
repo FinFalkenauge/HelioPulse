@@ -53,6 +53,14 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             }
         }
 
+        self.service.onHistoryPayload = { [weak self] payload in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.store.importVictronHistory(payload)
+                self.trendPoints = await self.store.trendPoints(range: self.trendRange)
+            }
+        }
+
         self.environmentService.onUpdate = { [weak self] context in
             guard let self else { return }
             self.forecastContext = context

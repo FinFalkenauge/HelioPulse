@@ -18,6 +18,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private var continuation: AsyncStream<TelemetrySnapshot>.Continuation?
     private var onTerminate: (() -> Void)?
     var onConnectionStateChange: ((ConnectionState) -> Void)?
+    var onHistoryPayload: ((VictronHistoryPayload) -> Void)?
     
     // Custom Victron VE.Direct BLE UUIDs
     private let victronServiceCustomUUID = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
@@ -41,6 +42,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private var hasReceivedTelemetrySinceConnect = false
     private var payloadPreviewCount = 0
     private var parseMissCount = 0
+    private var lastHistoryFingerprint = ""
     private let logger = Logger(subsystem: "com.heliopulse.app", category: "BLE")
     
     override init() {
@@ -331,6 +333,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                 textBuffer.removeFirst(textBuffer.count - 4096)
             }
 
+            emitHistoryPayloadIfAvailable(from: rawText)
+
             if let registers = VictronRegisterParser.parseTextFrame(rawText) {
                 return VictronRegisterParser.buildTextSnapshot(registers: registers)
             }
@@ -339,6 +343,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             if parts.count > 1 {
                 textBuffer = parts.last ?? ""
                 let completeBlock = parts.dropLast().joined(separator: "\n")
+                emitHistoryPayloadIfAvailable(from: completeBlock)
                 if let registers = VictronRegisterParser.parseTextFrame(completeBlock) {
                     return VictronRegisterParser.buildTextSnapshot(registers: registers)
                 }
@@ -357,6 +362,64 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
         
         return nil
+    }
+
+    private func emitHistoryPayloadIfAvailable(from text: String) {
+        let payload = parseHistoryPayload(from: text)
+        guard !payload.isEmpty else { return }
+
+        let fingerprint = [
+            optionalIntString(payload.todayYieldRaw),
+            optionalIntString(payload.yesterdayYieldRaw),
+            optionalIntString(payload.maxTodayPowerW),
+            optionalIntString(payload.maxYesterdayPowerW),
+            optionalIntString(payload.daysSinceLastFullCharge)
+        ].joined(separator: "|")
+
+        guard fingerprint != lastHistoryFingerprint else { return }
+        lastHistoryFingerprint = fingerprint
+        onHistoryPayload?(payload)
+    }
+
+    private func parseHistoryPayload(from text: String) -> VictronHistoryPayload {
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        var fields: [String: Int] = [:]
+        for line in normalized.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+
+            let separatorChars: [Character] = ["\t", "=", ":"]
+            guard let separatorIndex = trimmed.firstIndex(where: { separatorChars.contains($0) }) else { continue }
+            let keyPart = String(trimmed[..<separatorIndex])
+            let valueStart = trimmed.index(after: separatorIndex)
+            let valuePart = String(trimmed[valueStart...])
+            let parts = [keyPart, valuePart]
+            guard parts.count == 2 else { continue }
+
+            let key = parts[0].trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let valueString = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let value = Int(valueString) else { continue }
+            fields[key] = value
+        }
+
+        // VE.Direct MPPT devices commonly expose history in these text fields:
+        // H20=Yield today, H22=Yield yesterday, H21/H23=max power, HSDS=days since last full charge.
+        // Some firmware variants shift the field set, therefore we keep H19 as fallback.
+        return VictronHistoryPayload(
+            todayYieldRaw: fields["H20"] ?? fields["H19"],
+            yesterdayYieldRaw: fields["H22"] ?? nil,
+            maxTodayPowerW: fields["H21"],
+            maxYesterdayPowerW: fields["H23"],
+            daysSinceLastFullCharge: fields["HSDS"]
+        )
+    }
+
+    private func optionalIntString(_ value: Int?) -> String {
+        guard let value else { return "-" }
+        return String(value)
     }
 
     private func parseObservedBinaryPayload(_ data: Data, characteristic: CBCharacteristic) -> TelemetrySnapshot? {

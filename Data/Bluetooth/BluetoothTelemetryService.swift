@@ -2,6 +2,7 @@ import Foundation
 
 protocol BluetoothTelemetryService: AnyObject {
     var onConnectionStateText: ((String) -> Void)? { get set }
+    var onHistoryPayload: ((VictronHistoryPayload) -> Void)? { get set }
     var isMockDataEnabled: Bool { get }
     func telemetryStream() -> AsyncStream<TelemetrySnapshot>
     func startScanning() async
@@ -16,6 +17,7 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
     private var mockTask: Task<Void, Never>?
     private var useMockData = false  // Real Victron telemetry is default for TestFlight
     var onConnectionStateText: ((String) -> Void)?
+    var onHistoryPayload: ((VictronHistoryPayload) -> Void)?
     var isMockDataEnabled: Bool { useMockData }
     
     init() {
@@ -125,6 +127,9 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
                 self?.onConnectionStateText?("Bluetooth: Verbindung verloren")
             }
         }
+        manager.onHistoryPayload = { [weak self] payload in
+            self?.onHistoryPayload?(payload)
+        }
         victronManager = manager
         return manager
     }
@@ -135,6 +140,7 @@ final class MockBluetoothTelemetryService: BluetoothTelemetryService {
     private var continuation: AsyncStream<TelemetrySnapshot>.Continuation?
     private var timer: Task<Void, Never>?
     var onConnectionStateText: ((String) -> Void)?
+    var onHistoryPayload: ((VictronHistoryPayload) -> Void)?
     var isMockDataEnabled: Bool { true }
 
     func telemetryStream() -> AsyncStream<TelemetrySnapshot> {

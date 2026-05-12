@@ -3,6 +3,9 @@ import SwiftUI
 
 struct TrendsView: View {
     @ObservedObject var viewModel: HelioPulseDashboardViewModel
+    @State private var showSolar = true
+    @State private var showLoad = true
+    @State private var showBattery = false
 
     var body: some View {
         ZStack {
@@ -37,35 +40,55 @@ struct TrendsView: View {
             }
             .pickerStyle(.segmented)
 
+            HStack(spacing: 8) {
+                metricToggle(title: "Solar", color: Theme.solarAmber, isOn: $showSolar)
+                metricToggle(title: "Last", color: Theme.flowCyan, isOn: $showLoad)
+                metricToggle(title: "Batterie", color: Theme.stateGreen, isOn: $showBattery)
+            }
+
             ZStack {
                 Chart(viewModel.trendPoints) { point in
-                    LineMark(
-                        x: .value("Zeit", point.timestamp),
-                        y: .value("Solar", point.solarPower)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Theme.solarAmber)
-
-                    AreaMark(
-                        x: .value("Zeit", point.timestamp),
-                        y: .value("Solar", point.solarPower)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Theme.solarAmber.opacity(0.35), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
+                    if showSolar {
+                        LineMark(
+                            x: .value("Zeit", point.timestamp),
+                            y: .value("Solar", point.solarPower)
                         )
-                    )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Theme.solarAmber)
 
-                    LineMark(
-                        x: .value("Zeit", point.timestamp),
-                        y: .value("Load", point.loadPower)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Theme.flowCyan)
-                    .lineStyle(.init(lineWidth: 2.2, dash: [6, 3]))
+                        AreaMark(
+                            x: .value("Zeit", point.timestamp),
+                            y: .value("Solar", point.solarPower)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Theme.solarAmber.opacity(0.35), .clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
+
+                    if showLoad {
+                        LineMark(
+                            x: .value("Zeit", point.timestamp),
+                            y: .value("Last", point.loadPower)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Theme.flowCyan)
+                        .lineStyle(.init(lineWidth: 2.2, dash: [6, 3]))
+                    }
+
+                    if showBattery {
+                        LineMark(
+                            x: .value("Zeit", point.timestamp),
+                            y: .value("Batterie", point.batteryVoltage * 25.0)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Theme.stateGreen)
+                        .lineStyle(.init(lineWidth: 2.0, dash: [2, 2]))
+                    }
                 }
 
                 if viewModel.trendPoints.count < 3 {
@@ -141,5 +164,31 @@ struct TrendsView: View {
                 .font(.custom("AvenirNext-Medium", size: 13))
                 .foregroundStyle(Theme.textSecondary)
         }
+    }
+
+    private func metricToggle(title: String, color: Color, isOn: Binding<Bool>) -> some View {
+        Button {
+            isOn.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                Text(title)
+                    .font(.custom("AvenirNext-Medium", size: 12))
+            }
+            .foregroundStyle(isOn.wrappedValue ? Theme.textPrimary : Theme.textSecondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(isOn.wrappedValue ? color.opacity(0.2) : Color.white.opacity(0.06))
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(isOn.wrappedValue ? color.opacity(0.45) : Color.white.opacity(0.12), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
