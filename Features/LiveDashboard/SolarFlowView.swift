@@ -162,47 +162,7 @@ struct SolarFlowView: View {
                 )
 
             VStack(spacing: 6) {
-                ZStack {
-                    Image(systemName: "car.side.fill")
-                        .font(.system(size: 100, weight: .medium))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 0.23, green: 0.35, blue: 0.63),
-                                    Color(red: 0.12, green: 0.19, blue: 0.35)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: Theme.bgDeep.opacity(0.9), radius: 10, y: 8)
-
-                    Image(systemName: "car.side.fill")
-                        .font(.system(size: 100, weight: .medium))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Theme.flowCyan.opacity(0.3), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .blendMode(.screen)
-
-                    HStack(spacing: 4) {
-                        ForEach(0..<5, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 1.5)
-                                .fill(Theme.solarAmber.opacity(0.85))
-                                .frame(width: 10, height: 4)
-                        }
-                    }
-                    .offset(y: -16)
-
-                    Circle()
-                        .fill(Theme.solarAmber)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: Theme.solarAmber.opacity(0.95), radius: 6)
-                        .offset(x: 48, y: -16)
-                }
+                VWBus3DView()
 
                 HStack(spacing: 10) {
                     BatteryIndicator(level: snapshot.modeledSOC / 100)

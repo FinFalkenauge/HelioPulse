@@ -20,7 +20,9 @@
 		874109392900AA6F6B094B08 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A32F31D5ABC6B3AB9843965B /* LaunchScreen.storyboard */; };
 		887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */; };
 		8C66BF12B476B626B1DC046B /* VictronBluetoothManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07021623A71299EADDDDB424 /* VictronBluetoothManager.swift */; };
+		A193A00F33DFEA66812B8E11 /* VWBus3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34ABDE6AB40CE97191104B8 /* VWBus3DView.swift */; };
 		AB9288D42E716F4071FCF575 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */; };
+		C83B0A8CC78B2EDFCC0B5101 /* Volkswagen Type 2 Kombi T1 1967.fbx in Resources */ = {isa = PBXBuildFile; fileRef = 137C162114C2195E7F54D233 /* Volkswagen Type 2 Kombi T1 1967.fbx */; };
 		DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F346FD70F9B4189513732A5A /* Theme.swift */; };
 		EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9EEBAE0CD387023457445B /* TrendsView.swift */; };
 /* End PBXBuildFile section */
@@ -29,6 +31,7 @@
 		053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelioPulseApp.swift; sourceTree = "<group>"; };
 		07021623A71299EADDDDB424 /* VictronBluetoothManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronBluetoothManager.swift; sourceTree = "<group>"; };
 		102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothTelemetryService.swift; sourceTree = "<group>"; };
+		137C162114C2195E7F54D233 /* Volkswagen Type 2 Kombi T1 1967.fbx */ = {isa = PBXFileReference; path = "Volkswagen Type 2 Kombi T1 1967.fbx"; sourceTree = "<group>"; };
 		2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
 		331302606861554607125546 /* VictronRegisterParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronRegisterParser.swift; sourceTree = "<group>"; };
 		5AAA52FF4F8682C64C79B497 /* HelioPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HelioPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -36,6 +39,7 @@
 		92FB60E0580764B40D8A59FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9B9EEBAE0CD387023457445B /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
 		A32F31D5ABC6B3AB9843965B /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		A34ABDE6AB40CE97191104B8 /* VWBus3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VWBus3DView.swift; sourceTree = "<group>"; };
 		A9310893DEC356104F0E7170 /* SolarFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarFlowView.swift; sourceTree = "<group>"; };
 		B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastScenario.swift; sourceTree = "<group>"; };
 		C3DFD4B83D8D988EC9741191 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
@@ -47,10 +51,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		03AA5A251920641409D97A87 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				137C162114C2195E7F54D233 /* Volkswagen Type 2 Kombi T1 1967.fbx */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		0C877807B03EB6D42FE21DFD /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				92FB60E0580764B40D8A59FD /* Assets.xcassets */,
+				03AA5A251920641409D97A87 /* Models */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -126,6 +139,7 @@
 			children = (
 				2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */,
 				A9310893DEC356104F0E7170 /* SolarFlowView.swift */,
+				A34ABDE6AB40CE97191104B8 /* VWBus3DView.swift */,
 			);
 			path = LiveDashboard;
 			sourceTree = "<group>";
@@ -228,6 +242,7 @@
 			files = (
 				5E8D5C73B9A31A6F55278CBF /* Assets.xcassets in Resources */,
 				874109392900AA6F6B094B08 /* LaunchScreen.storyboard in Resources */,
+				C83B0A8CC78B2EDFCC0B5101 /* Volkswagen Type 2 Kombi T1 1967.fbx in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -250,6 +265,7 @@
 				47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */,
 				DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */,
 				EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */,
+				A193A00F33DFEA66812B8E11 /* VWBus3DView.swift in Sources */,
 				8C66BF12B476B626B1DC046B /* VictronBluetoothManager.swift in Sources */,
 				71A00E8156803673DE7A0D28 /* VictronRegisterParser.swift in Sources */,
 			);
