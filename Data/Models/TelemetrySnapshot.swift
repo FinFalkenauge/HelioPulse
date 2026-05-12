@@ -50,17 +50,51 @@ struct TelemetrySnapshot: Identifiable, Codable {
 
 struct TrendPoint: Identifiable, Codable {
     let id: UUID
-    let hour: Int
+    let timestamp: Date
     let solarPower: Double
     let loadPower: Double
     let batteryVoltage: Double
 
-    init(hour: Int, solarPower: Double, loadPower: Double, batteryVoltage: Double) {
+    init(timestamp: Date, solarPower: Double, loadPower: Double, batteryVoltage: Double) {
         self.id = UUID()
-        self.hour = hour
+        self.timestamp = timestamp
         self.solarPower = solarPower
         self.loadPower = loadPower
         self.batteryVoltage = batteryVoltage
+    }
+
+    var hour: Int {
+        Calendar.current.component(.hour, from: timestamp)
+    }
+}
+
+enum TrendRange: String, CaseIterable, Identifiable, Codable {
+    case day24
+    case days7
+    case days30
+    case year
+    case all
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .day24: return "24h"
+        case .days7: return "7T"
+        case .days30: return "30T"
+        case .year: return "1J"
+        case .all: return "Alles"
+        }
+    }
+
+    var headline: String {
+        switch self {
+        case .day24: return "24h Leistungsfluss"
+        case .days7: return "7 Tage Verlauf"
+        case .days30: return "30 Tage Verlauf"
+        case .year: return "1 Jahr Verlauf"
+        case .all: return "Langzeit-Verlauf"
+        }
     }
 }
 
@@ -114,13 +148,13 @@ extension TelemetrySnapshot {
     )
 
     static let mockTrend: [TrendPoint] = [
-        .init(hour: 0, solarPower: 10, loadPower: 90, batteryVoltage: 12.9),
-        .init(hour: 3, solarPower: 0, loadPower: 120, batteryVoltage: 12.5),
-        .init(hour: 6, solarPower: 45, loadPower: 140, batteryVoltage: 12.8),
-        .init(hour: 9, solarPower: 180, loadPower: 110, batteryVoltage: 13.4),
-        .init(hour: 12, solarPower: 260, loadPower: 95, batteryVoltage: 13.8),
-        .init(hour: 15, solarPower: 210, loadPower: 105, batteryVoltage: 13.7),
-        .init(hour: 18, solarPower: 80, loadPower: 150, batteryVoltage: 13.0),
-        .init(hour: 21, solarPower: 20, loadPower: 130, batteryVoltage: 12.7)
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -21, to: .now) ?? .now, solarPower: 10, loadPower: 90, batteryVoltage: 12.9),
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -18, to: .now) ?? .now, solarPower: 0, loadPower: 120, batteryVoltage: 12.5),
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -15, to: .now) ?? .now, solarPower: 45, loadPower: 140, batteryVoltage: 12.8),
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -12, to: .now) ?? .now, solarPower: 180, loadPower: 110, batteryVoltage: 13.4),
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -9, to: .now) ?? .now, solarPower: 260, loadPower: 95, batteryVoltage: 13.8),
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -6, to: .now) ?? .now, solarPower: 210, loadPower: 105, batteryVoltage: 13.7),
+        .init(timestamp: Calendar.current.date(byAdding: .hour, value: -3, to: .now) ?? .now, solarPower: 80, loadPower: 150, batteryVoltage: 13.0),
+        .init(timestamp: .now, solarPower: 20, loadPower: 130, batteryVoltage: 12.7)
     ]
 }

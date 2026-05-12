@@ -5,6 +5,7 @@ import Observation
 final class HelioPulseDashboardViewModel: ObservableObject {
     @Published private(set) var snapshot: TelemetrySnapshot = .empty
     @Published private(set) var trendPoints: [TrendPoint] = []
+    @Published private(set) var trendRange: TrendRange = .day24
     @Published private(set) var forecastScenarios: [ForecastScenario] = []
     @Published private(set) var connectionState: String = "Bluetooth: Nicht verbunden"
     @Published private(set) var lastUpdatedText: String = "-"
@@ -97,8 +98,15 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.isConnected = !isUsingMockData
         self.lastUpdatedText = Self.relativeTimestamp(from: self.snapshot.timestamp)
         await store.append(self.snapshot)
-        self.trendPoints = await store.trendPoints(limit: 24)
+        self.trendPoints = await store.trendPoints(range: trendRange)
         self.forecastScenarios = forecast(for: self.snapshot)
+    }
+
+    func setTrendRange(_ range: TrendRange) {
+        trendRange = range
+        Task { @MainActor in
+            self.trendPoints = await self.store.trendPoints(range: range)
+        }
     }
 
     func setBatteryChemistry(_ chemistry: BatteryChemistry) {

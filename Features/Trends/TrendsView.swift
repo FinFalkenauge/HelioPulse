@@ -23,21 +23,31 @@ struct TrendsView: View {
 
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("24h Leistungsfluss")
+            Text(viewModel.trendRange.headline)
                 .font(.custom("AvenirNext-DemiBold", size: 18))
                 .foregroundStyle(Theme.textPrimary)
+
+            Picker("Zeitraum", selection: Binding(
+                get: { viewModel.trendRange },
+                set: { viewModel.setTrendRange($0) }
+            )) {
+                ForEach(TrendRange.allCases) { range in
+                    Text(range.title).tag(range)
+                }
+            }
+            .pickerStyle(.segmented)
 
             ZStack {
                 Chart(viewModel.trendPoints) { point in
                     LineMark(
-                        x: .value("Hour", point.hour),
+                        x: .value("Zeit", point.timestamp),
                         y: .value("Solar", point.solarPower)
                     )
                     .interpolationMethod(.catmullRom)
                     .foregroundStyle(Theme.solarAmber)
 
                     AreaMark(
-                        x: .value("Hour", point.hour),
+                        x: .value("Zeit", point.timestamp),
                         y: .value("Solar", point.solarPower)
                     )
                     .interpolationMethod(.catmullRom)
@@ -50,7 +60,7 @@ struct TrendsView: View {
                     )
 
                     LineMark(
-                        x: .value("Hour", point.hour),
+                        x: .value("Zeit", point.timestamp),
                         y: .value("Load", point.loadPower)
                     )
                     .interpolationMethod(.catmullRom)
@@ -59,7 +69,7 @@ struct TrendsView: View {
                 }
 
                 if viewModel.trendPoints.count < 3 {
-                    Text("Sammle Live-Daten fur den 24h-Verlauf …")
+                    Text("Sammle Verlaufspunkte …")
                         .font(.custom("AvenirNext-Medium", size: 13))
                         .foregroundStyle(Theme.textSecondary)
                         .padding(.horizontal, 10)

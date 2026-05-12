@@ -1,12 +1,48 @@
 import Foundation
 
 actor TelemetryStore {
+    private struct DailyAggregate: Codable {
+        let dayStart: Date
+        var sampleCount: Int
+        var solarSum: Double
+        var loadSum: Double
+        var voltageSum: Double
+    }
+
+    private struct PersistedHistory: Codable {
+        let snapshots: [TelemetrySnapshot]
+        let dailyAggregates: [DailyAggregate]
+    }
+
     private(set) var snapshots: [TelemetrySnapshot] = []
+    private var dailyAggregates: [DailyAggregate] = []
+    private var appendCountSinceSave = 0
+    private let maxSnapshots = 1_440
+    private let maxDailyAggregates = 4_000
+    private let saveInterval = 24
+    private let calendar = Calendar.current
+    private let historyURL: URL
+
+    init() {
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = appSupport.appendingPathComponent("HelioPulse", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        historyURL = dir.appendingPathComponent("telemetry-history.json")
+        loadHistory()
+    }
 
     func append(_ snapshot: TelemetrySnapshot) {
         snapshots.append(snapshot)
-        if snapshots.count > 360 {
-            snapshots.removeFirst(snapshots.count - 360)
+        if snapshots.count > maxSnapshots {
+            snapshots.removeFirst(snapshots.count - maxSnapshots)
+        }
+
+        appendToDailyAggregate(snapshot)
+        appendCountSinceSave += 1
+        if appendCountSinceSave >= saveInterval {
+            saveHistory()
+            appendCountSinceSave = 0
         }
     }
 
@@ -18,30 +54,105 @@ actor TelemetryStore {
         Array(snapshots.suffix(limit))
     }
 
-    func trendPoints(limit: Int = 24) -> [TrendPoint] {
-        let recentSnapshots = Array(snapshots.suffix(max(2, limit)))
-        guard !recentSnapshots.isEmpty else { return [] }
+    func trendPoints(range: TrendRange = .day24) -> [TrendPoint] {
+        switch range {
+        case .day24:
+            return hourlyPointsForLast24h()
+        case .days7:
+            return dailyPoints(lastDays: 7)
+        case .days30:
+            return dailyPoints(lastDays: 30)
+        case .year:
+            return dailyPoints(lastDays: 365)
+        case .all:
+            return dailyPoints(lastDays: nil)
+        }
+    }
 
-        let calendar = Calendar.current
-        var points = recentSnapshots.map { snapshot in
-            TrendPoint(
-                hour: calendar.component(.hour, from: snapshot.timestamp),
-                solarPower: snapshot.solarPower,
-                loadPower: snapshot.loadCurrent * snapshot.batteryVoltage,
-                batteryVoltage: snapshot.batteryVoltage
-            )
+    private func hourlyPointsForLast24h() -> [TrendPoint] {
+        let start = Date().addingTimeInterval(-24 * 3600)
+        let filtered = snapshots.filter { $0.timestamp >= start }
+        guard !filtered.isEmpty else { return [] }
+
+        var buckets: [Date: DailyAggregate] = [:]
+        for snapshot in filtered {
+            let hourStart = calendar.dateInterval(of: .hour, for: snapshot.timestamp)?.start ?? snapshot.timestamp
+            var aggregate = buckets[hourStart] ?? DailyAggregate(dayStart: hourStart, sampleCount: 0, solarSum: 0, loadSum: 0, voltageSum: 0)
+            aggregate.sampleCount += 1
+            aggregate.solarSum += snapshot.solarPower
+            aggregate.loadSum += snapshot.loadCurrent * snapshot.batteryVoltage
+            aggregate.voltageSum += snapshot.batteryVoltage
+            buckets[hourStart] = aggregate
         }
 
-        if points.count == 1, let only = points.first {
-            let duplicated = TrendPoint(
-                hour: (only.hour + 23) % 24,
-                solarPower: only.solarPower,
-                loadPower: only.loadPower,
-                batteryVoltage: only.batteryVoltage
+        return buckets.keys.sorted().compactMap { hourStart in
+            guard let agg = buckets[hourStart], agg.sampleCount > 0 else { return nil }
+            let c = Double(agg.sampleCount)
+            return TrendPoint(
+                timestamp: hourStart,
+                solarPower: agg.solarSum / c,
+                loadPower: agg.loadSum / c,
+                batteryVoltage: agg.voltageSum / c
             )
-            points.insert(duplicated, at: 0)
+        }
+    }
+
+    private func dailyPoints(lastDays: Int?) -> [TrendPoint] {
+        let cutoff: Date? = {
+            guard let lastDays else { return nil }
+            return calendar.date(byAdding: .day, value: -lastDays + 1, to: calendar.startOfDay(for: .now))
+        }()
+
+        let selected = dailyAggregates.filter { aggregate in
+            guard let cutoff else { return true }
+            return aggregate.dayStart >= cutoff
         }
 
-        return points
+        return selected.sorted(by: { $0.dayStart < $1.dayStart }).compactMap { agg in
+            guard agg.sampleCount > 0 else { return nil }
+            let c = Double(agg.sampleCount)
+            return TrendPoint(
+                timestamp: agg.dayStart,
+                solarPower: agg.solarSum / c,
+                loadPower: agg.loadSum / c,
+                batteryVoltage: agg.voltageSum / c
+            )
+        }
+    }
+
+    private func appendToDailyAggregate(_ snapshot: TelemetrySnapshot) {
+        let dayStart = calendar.startOfDay(for: snapshot.timestamp)
+        if let lastIndex = dailyAggregates.indices.last, dailyAggregates[lastIndex].dayStart == dayStart {
+            dailyAggregates[lastIndex].sampleCount += 1
+            dailyAggregates[lastIndex].solarSum += snapshot.solarPower
+            dailyAggregates[lastIndex].loadSum += snapshot.loadCurrent * snapshot.batteryVoltage
+            dailyAggregates[lastIndex].voltageSum += snapshot.batteryVoltage
+        } else {
+            dailyAggregates.append(
+                DailyAggregate(
+                    dayStart: dayStart,
+                    sampleCount: 1,
+                    solarSum: snapshot.solarPower,
+                    loadSum: snapshot.loadCurrent * snapshot.batteryVoltage,
+                    voltageSum: snapshot.batteryVoltage
+                )
+            )
+            if dailyAggregates.count > maxDailyAggregates {
+                dailyAggregates.removeFirst(dailyAggregates.count - maxDailyAggregates)
+            }
+        }
+    }
+
+    private func loadHistory() {
+        guard let data = try? Data(contentsOf: historyURL) else { return }
+        guard let persisted = try? JSONDecoder().decode(PersistedHistory.self, from: data) else { return }
+        snapshots = persisted.snapshots
+        dailyAggregates = persisted.dailyAggregates.sorted(by: { $0.dayStart < $1.dayStart })
+    }
+
+    private func saveHistory() {
+        let persisted = PersistedHistory(snapshots: snapshots, dailyAggregates: dailyAggregates)
+        guard let data = try? JSONEncoder().encode(persisted) else { return }
+        try? data.write(to: historyURL, options: .atomic)
     }
 }
