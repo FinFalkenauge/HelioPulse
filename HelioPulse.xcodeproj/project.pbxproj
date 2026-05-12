@@ -27,6 +27,7 @@
 		C83B0A8CC78B2EDFCC0B5101 /* Volkswagen Type 2 Kombi T1 1967.fbx in Resources */ = {isa = PBXBuildFile; fileRef = 137C162114C2195E7F54D233 /* Volkswagen Type 2 Kombi T1 1967.fbx */; };
 		DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F346FD70F9B4189513732A5A /* Theme.swift */; };
 		EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9EEBAE0CD387023457445B /* TrendsView.swift */; };
+		F17B70AA1F059477697EC4D5 /* BatteryProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA8DDA203772C85131E08C15 /* BatteryProfile.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +45,7 @@
 		A32F31D5ABC6B3AB9843965B /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		A34ABDE6AB40CE97191104B8 /* VWBus3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VWBus3DView.swift; sourceTree = "<group>"; };
 		A9310893DEC356104F0E7170 /* SolarFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarFlowView.swift; sourceTree = "<group>"; };
+		AA8DDA203772C85131E08C15 /* BatteryProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryProfile.swift; sourceTree = "<group>"; };
 		B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastScenario.swift; sourceTree = "<group>"; };
 		C3DFD4B83D8D988EC9741191 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
 		C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryStore.swift; sourceTree = "<group>"; };
@@ -161,6 +163,7 @@
 			isa = PBXGroup;
 			children = (
 				E034C7D52F27D5B11FFC2DD7 /* BatteryChemistry.swift */,
+				AA8DDA203772C85131E08C15 /* BatteryProfile.swift */,
 				B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */,
 				7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */,
 			);
@@ -268,6 +271,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3689CDF1632128157441DBDC /* BatteryChemistry.swift in Sources */,
+				F17B70AA1F059477697EC4D5 /* BatteryProfile.swift in Sources */,
 				5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */,
 				6DC0D4329C09F3D22C083B57 /* ForecastEnvironmentService.swift in Sources */,
 				0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */,

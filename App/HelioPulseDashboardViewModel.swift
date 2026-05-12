@@ -12,6 +12,8 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     @Published private(set) var isConnected: Bool = false
     @Published private(set) var isUsingMockData: Bool = false
     @Published private(set) var batteryChemistry: BatteryChemistry = .unknown
+    @Published private(set) var batteryProfile: BatteryProfile = .custom
+    @Published private(set) var batteryCapacityAh: Double = 100
     @Published private(set) var forecastContextText: String = "Forecast: Nur Live-Telemetrie"
 
     private let service: BluetoothTelemetryService
@@ -21,6 +23,8 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     private var forecastContext: ForecastEnvironmentContext?
     private let defaults = UserDefaults.standard
     private let batteryChemistryKey = "heliopulse.batteryChemistry"
+    private let batteryProfileKey = "heliopulse.batteryProfile"
+    private let batteryCapacityAhKey = "heliopulse.batteryCapacityAh"
 
     init(service: BluetoothTelemetryService = VictronBluetoothTelemetryService()) {
         self.service = service
@@ -28,6 +32,18 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         if let raw = defaults.string(forKey: batteryChemistryKey),
            let chemistry = BatteryChemistry(rawValue: raw) {
             self.batteryChemistry = chemistry
+        }
+        if let raw = defaults.string(forKey: batteryProfileKey),
+           let profile = BatteryProfile(rawValue: raw) {
+            self.batteryProfile = profile
+            if profile != .custom {
+                self.batteryChemistry = profile.chemistry
+                self.batteryCapacityAh = profile.capacityAh ?? 100
+            }
+        }
+        let storedAh = defaults.double(forKey: batteryCapacityAhKey)
+        if storedAh > 0 {
+            self.batteryCapacityAh = storedAh
         }
         self.service.onConnectionStateText = { [weak self] text in
             Task { @MainActor in
@@ -90,10 +106,44 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     func setBatteryChemistry(_ chemistry: BatteryChemistry) {
         batteryChemistry = chemistry
+        batteryProfile = .custom
         defaults.set(chemistry.rawValue, forKey: batteryChemistryKey)
+        defaults.set(BatteryProfile.custom.rawValue, forKey: batteryProfileKey)
 
         if hasLiveData {
             snapshot = calibratedSnapshot(from: snapshot)
+            forecastScenarios = forecast(for: snapshot)
+        }
+    }
+
+    func setBatteryProfile(_ profile: BatteryProfile) {
+        batteryProfile = profile
+        defaults.set(profile.rawValue, forKey: batteryProfileKey)
+
+        if profile == .custom {
+            defaults.set(batteryChemistry.rawValue, forKey: batteryChemistryKey)
+        } else {
+            batteryChemistry = profile.chemistry
+            defaults.set(profile.chemistry.rawValue, forKey: batteryChemistryKey)
+            if let ah = profile.capacityAh {
+                batteryCapacityAh = ah
+                defaults.set(ah, forKey: batteryCapacityAhKey)
+            }
+        }
+
+        if hasLiveData {
+            snapshot = calibratedSnapshot(from: snapshot)
+            forecastScenarios = forecast(for: snapshot)
+        }
+    }
+
+    func setBatteryCapacityAh(_ ah: Double) {
+        batteryCapacityAh = max(20, min(600, ah))
+        batteryProfile = .custom
+        defaults.set(BatteryProfile.custom.rawValue, forKey: batteryProfileKey)
+        defaults.set(batteryCapacityAh, forKey: batteryCapacityAhKey)
+
+        if hasLiveData {
             forecastScenarios = forecast(for: snapshot)
         }
     }
@@ -181,7 +231,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     }
 
     private func runtimeHours(for snapshot: TelemetrySnapshot, loadFactor: Double, weatherFactor: Double) -> Double {
-        let capacityAh = 100.0
+        let capacityAh = batteryCapacityAh
         let batteryCapacityWh = max(800.0, snapshot.batteryVoltage * capacityAh)
         var remainingWh = batteryCapacityWh * max(0, min(1, snapshot.modeledSOC / 100.0))
         let baseLoadW = max(10.0, snapshot.loadCurrent * snapshot.batteryVoltage) * loadFactor

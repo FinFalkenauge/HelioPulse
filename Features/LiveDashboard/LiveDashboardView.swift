@@ -10,7 +10,7 @@ struct LiveDashboardView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     connectionCard
-                    SolarFlowView(snapshot: viewModel.snapshot)
+                    SolarFlowView(snapshot: viewModel.snapshot, batteryChemistry: viewModel.batteryChemistry)
                     if viewModel.hasLiveData {
                         confidenceCard
                         qualityCard
@@ -26,6 +26,20 @@ struct LiveDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Section("Profil") {
+                        ForEach(BatteryProfile.allCases, id: \.self) { profile in
+                            Button {
+                                viewModel.setBatteryProfile(profile)
+                            } label: {
+                                if profile == viewModel.batteryProfile {
+                                    Label(profile.localizedName, systemImage: "checkmark")
+                                } else {
+                                    Text(profile.localizedName)
+                                }
+                            }
+                        }
+                    }
+
                     ForEach(BatteryChemistry.allCases, id: \.self) { chemistry in
                         Button {
                             viewModel.setBatteryChemistry(chemistry)
@@ -34,6 +48,20 @@ struct LiveDashboardView: View {
                                 Label(chemistry.localizedName, systemImage: "checkmark")
                             } else {
                                 Text(chemistry.localizedName)
+                            }
+                        }
+                    }
+
+                    Section("Kapazität (Ah)") {
+                        ForEach([60, 80, 100, 120, 160, 200, 280], id: \.self) { ah in
+                            Button {
+                                viewModel.setBatteryCapacityAh(Double(ah))
+                            } label: {
+                                if Int(viewModel.batteryCapacityAh.rounded()) == ah {
+                                    Label("\(ah) Ah", systemImage: "checkmark")
+                                } else {
+                                    Text("\(ah) Ah")
+                                }
                             }
                         }
                     }
@@ -120,6 +148,7 @@ struct LiveDashboardView: View {
                 qualityChip(title: "Fahrt", value: viewModel.snapshot.driveMode ? "Ja" : "Nein", tint: viewModel.snapshot.driveMode ? Theme.warnCoral : Theme.stateGreen)
                 qualityChip(title: "Konfidenz", value: "\(Int(viewModel.snapshot.socConfidence * 100))%", tint: Theme.solarAmber)
                 qualityChip(title: "Batterie", value: viewModel.batteryChemistry.localizedName, tint: Theme.flowCyan)
+                qualityChip(title: "Ah", value: "\(Int(viewModel.batteryCapacityAh))", tint: Theme.flowCyan)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

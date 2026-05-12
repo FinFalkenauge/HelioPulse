@@ -69,6 +69,7 @@ private struct FlowLine: View {
 
 struct SolarFlowView: View {
     let snapshot: TelemetrySnapshot
+    let batteryChemistry: BatteryChemistry
     @State private var sunGlow: CGFloat = 1.0
 
     private var loadWatts: Double { snapshot.loadCurrent * snapshot.batteryVoltage }
@@ -176,8 +177,8 @@ struct SolarFlowView: View {
                         .foregroundStyle(Theme.flowCyan)
                 }
 
-                if isSocEstimated {
-                    Text("SOC bleibt eine Schatzung")
+                if showSocHint {
+                    Text(socHintText)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -249,6 +250,20 @@ struct SolarFlowView: View {
             return "~\(Int(snapshot.modeledSOC))%"
         }
         return "\(Int(snapshot.modeledSOC))%"
+    }
+
+    private var showSocHint: Bool {
+        batteryChemistry == .unknown || snapshot.socConfidence < 0.7
+    }
+
+    private var socHintText: String {
+        if batteryChemistry == .unknown {
+            return "Batterietyp wählen für bessere SOC-Schätzung"
+        }
+        if snapshot.socConfidence < 0.7 {
+            return "SOC aus Spannung + Profil (unter Last ungenauer)"
+        }
+        return "SOC aus Spannung + Profil"
     }
 
 }
