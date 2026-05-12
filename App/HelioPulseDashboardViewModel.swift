@@ -39,10 +39,12 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.environmentService.onUpdate = { [weak self] context in
             guard let self else { return }
             self.forecastContext = context
-            if context.hasWeather {
+            if context.hasWeather && context.hasTerrain {
+                self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter+Terrain aktiv", context.latitude, context.longitude)
+            } else if context.hasWeather {
                 self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter aktiv", context.latitude, context.longitude)
             } else {
-                self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter fehlt", context.latitude, context.longitude)
+                self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Nur Sonnenverlauf", context.latitude, context.longitude)
             }
             self.forecastScenarios = self.forecast(for: self.snapshot)
         }
@@ -158,17 +160,22 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             let date = Calendar.current.date(byAdding: .hour, value: hour, to: now) ?? now
             let sunFactor: Double
             let weatherEnv: Double
+            var terrainShade = 1.0
 
             if let context {
-                sunFactor = SolarGeometry.elevationFactor(date: date, latitude: context.latitude, longitude: context.longitude)
+                let sunPosition = SolarGeometry.position(date: date, latitude: context.latitude, longitude: context.longitude)
+                sunFactor = sunPosition.elevationFactor
                 weatherEnv = hourlyWeatherFactor(at: date, context: context)
+                if let profile = context.horizonProfile {
+                    terrainShade = terrainVisibilityFactor(sunPosition: sunPosition, profile: profile)
+                }
             } else {
                 sunFactor = 0.65
                 weatherEnv = 0.65
             }
 
             let terrainFactor = context != nil ? 1 + min(0.04, (context?.altitude ?? 0) / 10000.0) : 1.0
-            let solarW = max(0, baseSolarPotential * (0.58 * sunFactor + 0.42 * weatherEnv) * weatherFactor * terrainFactor)
+            let solarW = max(0, baseSolarPotential * (0.58 * sunFactor + 0.42 * weatherEnv) * weatherFactor * terrainFactor * terrainShade)
             let netWh = solarW - baseLoadW
             remainingWh = min(batteryCapacityWh, remainingWh + netWh)
 
@@ -197,6 +204,23 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     private func nearestWeatherPoint(to date: Date, context: ForecastEnvironmentContext) -> ForecastHourlyPoint? {
         context.hourly.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+    }
+
+    private func terrainVisibilityFactor(sunPosition: SolarGeometry.SolarPosition, profile: HorizonProfile) -> Double {
+        if sunPosition.elevationDegrees <= 0 {
+            return 0
+        }
+
+        let obstruction = profile.obstructionAngle(forAzimuth: sunPosition.azimuthDegrees)
+        if sunPosition.elevationDegrees <= obstruction {
+            return 0.18
+        }
+
+        let margin = sunPosition.elevationDegrees - obstruction
+        if margin < 6 {
+            return max(0.25, min(1.0, margin / 6.0))
+        }
+        return 1.0
     }
 
     private static func scenarioRuntime(hours: Double) -> String {

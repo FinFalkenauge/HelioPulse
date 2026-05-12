@@ -14,9 +14,23 @@ struct ForecastEnvironmentContext: Sendable {
     let longitude: Double
     let altitude: Double
     let hourly: [ForecastHourlyPoint]
+    let horizonProfile: HorizonProfile?
     let updatedAt: Date
 
     var hasWeather: Bool { !hourly.isEmpty }
+    var hasTerrain: Bool { horizonProfile != nil }
+}
+
+struct HorizonProfile: Sendable {
+    let sectorStepDegrees: Double
+    let obstructionBySectorDegrees: [Double]
+
+    func obstructionAngle(forAzimuth azimuthDegrees: Double) -> Double {
+        guard !obstructionBySectorDegrees.isEmpty else { return 0 }
+        let normalized = (azimuthDegrees.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+        let sector = Int((normalized / sectorStepDegrees).rounded()) % obstructionBySectorDegrees.count
+        return obstructionBySectorDegrees[sector]
+    }
 }
 
 final class ForecastEnvironmentService: NSObject {
@@ -63,13 +77,18 @@ final class ForecastEnvironmentService: NSObject {
         currentTask?.cancel()
         currentTask = Task { [weak self] in
             guard let self else { return }
-            let hourly = await self.fetchWeather(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            async let hourlyTask = self.fetchWeather(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            async let horizonTask = self.fetchTerrainHorizon(location: location)
+
+            let hourly = await hourlyTask
+            let horizonProfile = await horizonTask
 
             let context = ForecastEnvironmentContext(
                 latitude: location.coordinate.latitude,
                 longitude: location.coordinate.longitude,
                 altitude: location.altitude,
                 hourly: hourly,
+                horizonProfile: horizonProfile,
                 updatedAt: .now
             )
 
@@ -99,6 +118,75 @@ final class ForecastEnvironmentService: NSObject {
             return []
         }
     }
+
+    private func fetchTerrainHorizon(location: CLLocation) async -> HorizonProfile? {
+        let sectorCount = 16
+        let sectorStep = 360.0 / Double(sectorCount)
+        let distances: [Double] = [500, 1000, 2000, 3500]
+
+        var samplePoints: [(lat: Double, lon: Double, sector: Int, distance: Double)] = []
+        samplePoints.reserveCapacity(sectorCount * distances.count)
+
+        for sector in 0..<sectorCount {
+            let bearing = Double(sector) * sectorStep
+            for distance in distances {
+                let coordinate = destinationCoordinate(
+                    latitude: location.coordinate.latitude,
+                    longitude: location.coordinate.longitude,
+                    bearingDegrees: bearing,
+                    distanceMeters: distance
+                )
+                samplePoints.append((coordinate.latitude, coordinate.longitude, sector, distance))
+            }
+        }
+
+        let latList = samplePoints.map { String(format: "%.6f", $0.lat) }.joined(separator: ",")
+        let lonList = samplePoints.map { String(format: "%.6f", $0.lon) }.joined(separator: ",")
+
+        var components = URLComponents(string: "https://api.open-meteo.com/v1/elevation")
+        components?.queryItems = [
+            URLQueryItem(name: "latitude", value: latList),
+            URLQueryItem(name: "longitude", value: lonList)
+        ]
+
+        guard let url = components?.url else { return nil }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let response = try JSONDecoder().decode(OpenMeteoElevationResponse.self, from: data)
+            guard response.elevation.count == samplePoints.count else { return nil }
+
+            var obstructionAngles = Array(repeating: 0.0, count: sectorCount)
+            let baseAltitude = location.altitude
+
+            for index in response.elevation.indices {
+                let sample = samplePoints[index]
+                let elevationDelta = max(0, response.elevation[index] - baseAltitude)
+                let angleDegrees = atan2(elevationDelta, sample.distance) * 180 / .pi
+                obstructionAngles[sample.sector] = max(obstructionAngles[sample.sector], angleDegrees)
+            }
+
+            return HorizonProfile(sectorStepDegrees: sectorStep, obstructionBySectorDegrees: obstructionAngles)
+        } catch {
+            return nil
+        }
+    }
+
+    private func destinationCoordinate(latitude: Double, longitude: Double, bearingDegrees: Double, distanceMeters: Double) -> CLLocationCoordinate2D {
+        let earthRadius = 6_371_000.0
+        let bearing = bearingDegrees * .pi / 180
+        let lat1 = latitude * .pi / 180
+        let lon1 = longitude * .pi / 180
+        let angularDistance = distanceMeters / earthRadius
+
+        let lat2 = asin(sin(lat1) * cos(angularDistance) + cos(lat1) * sin(angularDistance) * cos(bearing))
+        let lon2 = lon1 + atan2(
+            sin(bearing) * sin(angularDistance) * cos(lat1),
+            cos(angularDistance) - sin(lat1) * sin(lat2)
+        )
+
+        return CLLocationCoordinate2D(latitude: lat2 * 180 / .pi, longitude: lon2 * 180 / .pi)
+    }
 }
 
 extension ForecastEnvironmentService: CLLocationManagerDelegate {
@@ -120,7 +208,20 @@ extension ForecastEnvironmentService: CLLocationManagerDelegate {
 }
 
 struct SolarGeometry {
+    struct SolarPosition: Sendable {
+        let elevationDegrees: Double
+        let azimuthDegrees: Double
+
+        var elevationFactor: Double {
+            max(0, sin(elevationDegrees * .pi / 180))
+        }
+    }
+
     static func elevationFactor(date: Date, latitude: Double, longitude: Double) -> Double {
+        position(date: date, latitude: latitude, longitude: longitude).elevationFactor
+    }
+
+    static func position(date: Date, latitude: Double, longitude: Double) -> SolarPosition {
         let dayOfYear = Calendar(identifier: .gregorian).ordinality(of: .day, in: .year, for: date) ?? 1
         let gamma = 2 * Double.pi / 365 * (Double(dayOfYear) - 1)
 
@@ -145,8 +246,20 @@ struct SolarGeometry {
 
         let latRad = latitude * .pi / 180
         let sinElevation = sin(latRad) * sin(declination) + cos(latRad) * cos(declination) * cos(hourAngle)
-        return max(0, sinElevation)
+        let elevation = asin(max(-1, min(1, sinElevation)))
+
+        let azimuthFromSouth = atan2(
+            sin(hourAngle),
+            cos(hourAngle) * sin(latRad) - tan(declination) * cos(latRad)
+        )
+        let azimuthDegrees = (azimuthFromSouth * 180 / .pi + 180).truncatingRemainder(dividingBy: 360)
+
+        return SolarPosition(elevationDegrees: elevation * 180 / .pi, azimuthDegrees: azimuthDegrees)
     }
+}
+
+private struct OpenMeteoElevationResponse: Decodable {
+    let elevation: [Double]
 }
 
 private struct OpenMeteoResponse: Decodable {
