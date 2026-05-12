@@ -27,34 +27,48 @@ struct TrendsView: View {
                 .font(.custom("AvenirNext-DemiBold", size: 18))
                 .foregroundStyle(Theme.textPrimary)
 
-            Chart(viewModel.trendPoints) { point in
-                LineMark(
-                    x: .value("Hour", point.hour),
-                    y: .value("Solar", point.solarPower)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(Theme.solarAmber)
-
-                AreaMark(
-                    x: .value("Hour", point.hour),
-                    y: .value("Solar", point.solarPower)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Theme.solarAmber.opacity(0.35), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
+            ZStack {
+                Chart(viewModel.trendPoints) { point in
+                    LineMark(
+                        x: .value("Hour", point.hour),
+                        y: .value("Solar", point.solarPower)
                     )
-                )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(Theme.solarAmber)
 
-                LineMark(
-                    x: .value("Hour", point.hour),
-                    y: .value("Load", point.loadPower)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(Theme.flowCyan)
-                .lineStyle(.init(lineWidth: 2.2, dash: [6, 3]))
+                    AreaMark(
+                        x: .value("Hour", point.hour),
+                        y: .value("Solar", point.solarPower)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Theme.solarAmber.opacity(0.35), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                    LineMark(
+                        x: .value("Hour", point.hour),
+                        y: .value("Load", point.loadPower)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(Theme.flowCyan)
+                    .lineStyle(.init(lineWidth: 2.2, dash: [6, 3]))
+                }
+
+                if viewModel.trendPoints.count < 3 {
+                    Text("Sammle Live-Daten fur den 24h-Verlauf …")
+                        .font(.custom("AvenirNext-Medium", size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.black.opacity(0.35))
+                        )
+                }
             }
             .chartYAxis {
                 AxisMarks(position: .leading)

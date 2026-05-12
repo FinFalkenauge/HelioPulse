@@ -38,6 +38,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         streamTask?.cancel()
         connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Suche nach Victron Regler …"
         isConnected = false
+        forecastScenarios = Self.forecast(for: snapshot)
         streamTask = Task {
             await service.startScanning()
             let stream = service.telemetryStream()
@@ -62,7 +63,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.isConnected = !isUsingMockData
         self.lastUpdatedText = Self.relativeTimestamp(from: self.snapshot.timestamp)
         await store.append(self.snapshot)
-        self.trendPoints = await store.trendPoints()
+        self.trendPoints = await store.trendPoints(limit: 24)
         self.forecastScenarios = Self.forecast(for: self.snapshot)
     }
 
@@ -109,16 +110,46 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     private static func forecast(for snapshot: TelemetrySnapshot) -> [ForecastScenario] {
         let modus = snapshot.driveMode ? "Fahrtmodus" : "Geparkt"
+        let baseHours = runtimeHours(for: snapshot)
+
+        let pessimistic = scenarioRuntime(baseHours: baseHours, factor: 0.72)
+        let realistic = scenarioRuntime(baseHours: baseHours, factor: 1.0)
+        let optimistic = scenarioRuntime(baseHours: baseHours, factor: 1.35)
+
         return [
-            ForecastScenario(name: "Pessimistisch", description: "Bewölkt und hoher Verbrauch · \(modus)", runtime: driveAdjusted(hours: 12, snapshot: snapshot), confidence: confidenceLabel(for: 0.35, snapshot: snapshot), tint: Theme.warnCoral),
-            ForecastScenario(name: "Realistisch", description: "Durchschnittliches Profil · \(modus)", runtime: driveAdjusted(hours: 17, snapshot: snapshot), confidence: confidenceLabel(for: snapshot.socConfidence, snapshot: snapshot), tint: Theme.flowCyan),
-            ForecastScenario(name: "Optimistisch", description: "Starke Sonne, geringer Verbrauch · \(modus)", runtime: driveAdjusted(hours: 23, snapshot: snapshot), confidence: confidenceLabel(for: 0.88, snapshot: snapshot), tint: Theme.stateGreen)
+            ForecastScenario(name: "Pessimistisch", description: "Bewölkt und hoher Verbrauch · \(modus)", runtime: pessimistic, confidence: confidenceLabel(for: 0.35, snapshot: snapshot), tint: Theme.warnCoral),
+            ForecastScenario(name: "Realistisch", description: "Durchschnittliches Profil · \(modus)", runtime: realistic, confidence: confidenceLabel(for: snapshot.socConfidence, snapshot: snapshot), tint: Theme.flowCyan),
+            ForecastScenario(name: "Optimistisch", description: "Starke Sonne, geringer Verbrauch · \(modus)", runtime: optimistic, confidence: confidenceLabel(for: 0.88, snapshot: snapshot), tint: Theme.stateGreen)
         ]
     }
 
-    private static func driveAdjusted(hours: Int, snapshot: TelemetrySnapshot) -> String {
-        let adjustedHours = snapshot.driveMode ? max(1, hours - 2) : hours
-        return "\(adjustedHours)h"
+    private static func runtimeHours(for snapshot: TelemetrySnapshot) -> Double {
+        let nominalBatteryWh = max(600.0, snapshot.batteryVoltage * 100.0)
+        let remainingWh = nominalBatteryWh * max(0, min(1, snapshot.modeledSOC / 100.0))
+
+        let loadPower = max(1.0, snapshot.loadCurrent * snapshot.batteryVoltage)
+        let solarContribution = max(0, snapshot.solarPower)
+
+        let netDischargePower: Double
+        if solarContribution >= loadPower {
+            netDischargePower = 1.0
+        } else {
+            netDischargePower = max(1.0, loadPower - solarContribution)
+        }
+
+        let hours = remainingWh / netDischargePower
+        if snapshot.driveMode {
+            return max(1.0, hours * 0.85)
+        }
+        return max(0.5, hours)
+    }
+
+    private static func scenarioRuntime(baseHours: Double, factor: Double) -> String {
+        let hours = baseHours * factor
+        if hours >= 72 {
+            return "72h+"
+        }
+        return String(format: "%.1fh", hours)
     }
 
     private static func confidenceLabel(for value: Double, snapshot: TelemetrySnapshot) -> String {

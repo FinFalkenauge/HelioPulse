@@ -18,14 +18,30 @@ actor TelemetryStore {
         Array(snapshots.suffix(limit))
     }
 
-    func trendPoints() -> [TrendPoint] {
-        snapshots.enumerated().map { index, snapshot in
+    func trendPoints(limit: Int = 24) -> [TrendPoint] {
+        let recentSnapshots = Array(snapshots.suffix(max(2, limit)))
+        guard !recentSnapshots.isEmpty else { return [] }
+
+        let calendar = Calendar.current
+        var points = recentSnapshots.map { snapshot in
             TrendPoint(
-                hour: index,
+                hour: calendar.component(.hour, from: snapshot.timestamp),
                 solarPower: snapshot.solarPower,
                 loadPower: snapshot.loadCurrent * snapshot.batteryVoltage,
                 batteryVoltage: snapshot.batteryVoltage
             )
         }
+
+        if points.count == 1, let only = points.first {
+            let duplicated = TrendPoint(
+                hour: (only.hour + 23) % 24,
+                solarPower: only.solarPower,
+                loadPower: only.loadPower,
+                batteryVoltage: only.batteryVoltage
+            )
+            points.insert(duplicated, at: 0)
+        }
+
+        return points
     }
 }
