@@ -83,8 +83,13 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         rssi: NSNumber
     ) {
         // Look for Victron MPPT devices (name typically contains "Victron" or has known UUIDs)
+        // Match known Victron device name prefixes (SmartSolar, MPPT, BlueSolar, VE.Direct, Victron)
         if let name = peripheral.name,
-           name.localizedCaseInsensitiveContains("Victron") || name.localizedCaseInsensitiveContains("MPPT") {
+           name.localizedCaseInsensitiveContains("Victron") ||
+           name.localizedCaseInsensitiveContains("MPPT") ||
+           name.localizedCaseInsensitiveContains("SmartSolar") ||
+           name.localizedCaseInsensitiveContains("BlueSolar") ||
+           name.localizedCaseInsensitiveContains("VE.Direct") {
             central.stopScan()
             scanTimeoutTask?.cancel()
             scanTimeoutTask = nil
@@ -229,10 +234,12 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
 
     private func startScan(on central: CBCentralManager) {
         onConnectionStateChange?(.scanning)
-        central.scanForPeripherals(withServices: [victronServiceCustomUUID], options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        // Scan without UUID filter so Victron devices are discoverable regardless of firmware version.
+        // Some MPPT models don't advertise the custom service UUID until connected.
+        central.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
         scanTimeoutTask?.cancel()
         scanTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(12))
+            try? await Task.sleep(for: .seconds(15))
             guard let self else { return }
             if self.connectedPeripheral == nil {
                 central.stopScan()

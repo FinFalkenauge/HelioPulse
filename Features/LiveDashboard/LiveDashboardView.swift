@@ -31,7 +31,7 @@ struct LiveDashboardView: View {
                 .font(.custom("AvenirNextCondensed-Bold", size: 56))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text("Updated \(viewModel.lastUpdatedText)")
+            Text("Aktualisiert \(viewModel.lastUpdatedText)")
                 .font(.custom("AvenirNext-Regular", size: 15))
                 .foregroundStyle(Theme.textSecondary)
         }
@@ -42,30 +42,30 @@ struct LiveDashboardView: View {
     private var kpiGrid: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                kpi(title: "Battery", value: String(format: "%.2fV", viewModel.snapshot.batteryVoltage), subtitle: String(format: "%.1fA", viewModel.snapshot.batteryCurrent), tint: Theme.flowCyan)
-                kpi(title: "Load", value: String(format: "%.1fA", viewModel.snapshot.loadCurrent), subtitle: viewModel.snapshot.primarySource.rawValue, tint: Theme.solarAmber)
+                kpi(title: "Batterie", value: String(format: "%.2fV", viewModel.snapshot.batteryVoltage), subtitle: String(format: "%.1fA", viewModel.snapshot.batteryCurrent), tint: Theme.flowCyan)
+                kpi(title: "Verbrauch", value: String(format: "%.1fA", viewModel.snapshot.loadCurrent), subtitle: viewModel.snapshot.primarySource.rawValue, tint: Theme.solarAmber)
             }
 
             HStack(spacing: 12) {
-                kpi(title: "State", value: viewModel.snapshot.chargeState.rawValue, subtitle: viewModel.snapshot.driveMode ? "Drive mode" : "Parked", tint: Theme.stateGreen)
-                kpi(title: "SOC", value: "\(Int(viewModel.snapshot.modeledSOC))%", subtitle: "Confidence \(Int(viewModel.snapshot.socConfidence * 100))%", tint: Theme.warnCoral)
+                kpi(title: "Zustand", value: viewModel.snapshot.chargeState.localizedName, subtitle: viewModel.snapshot.driveMode ? "Fahrt" : "Geparkt", tint: Theme.stateGreen)
+                kpi(title: "SOC", value: "\(Int(viewModel.snapshot.modeledSOC))%", subtitle: "Konfidenz \(Int(viewModel.snapshot.socConfidence * 100))%", tint: Theme.warnCoral)
             }
         }
     }
 
     private var confidenceCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Model confidence")
+            Text("Modell-Konfidenz")
                 .font(.custom("AvenirNext-DemiBold", size: 16))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text(viewModel.snapshot.driveMode ? "Alternator-aware mode is active. Runtime and SOC are still shown, but confidence is reduced while charging from the engine." : "High while parked. Forecast confidence is strongest when all consumers run through the MPPT load output.")
+            Text(viewModel.snapshot.driveMode ? "Fahrtmodus aktiv: Lichtmaschine lädt. Laufzeit und SOC werden weiterhin angezeigt, aber die Konfidenz ist während der Fahrt reduziert." : "Hoch bei geparktem Fahrzeug. Konfidenz ist am stärksten, wenn alle Verbraucher über den MPPT-Lastausgang laufen.")
                 .font(.custom("AvenirNext-Regular", size: 14))
                 .foregroundStyle(Theme.textSecondary)
 
             HStack(spacing: 8) {
                 Image(systemName: "car.fill")
-                Text(viewModel.snapshot.driveMode ? "Drive session detected" : "Solar-only session")
+                Text(viewModel.snapshot.driveMode ? "Fahrt erkannt" : "Nur Solar")
                     .font(.custom("AvenirNext-Medium", size: 13))
             }
             .foregroundStyle(Theme.flowCyan)
@@ -77,14 +77,14 @@ struct LiveDashboardView: View {
 
     private var qualityCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Signal quality")
+            Text("Signalqualität")
                 .font(.custom("AvenirNext-DemiBold", size: 16))
                 .foregroundStyle(Theme.textPrimary)
 
             HStack(spacing: 12) {
-                qualityChip(title: "Source", value: viewModel.snapshot.primarySource.rawValue, tint: Theme.flowCyan)
-                qualityChip(title: "Drive", value: viewModel.snapshot.driveMode ? "On" : "Off", tint: viewModel.snapshot.driveMode ? Theme.warnCoral : Theme.stateGreen)
-                qualityChip(title: "Confidence", value: "\(Int(viewModel.snapshot.socConfidence * 100))%", tint: Theme.solarAmber)
+                qualityChip(title: "Quelle", value: viewModel.snapshot.primarySource.localizedName, tint: Theme.flowCyan)
+                qualityChip(title: "Fahrt", value: viewModel.snapshot.driveMode ? "Ja" : "Nein", tint: viewModel.snapshot.driveMode ? Theme.warnCoral : Theme.stateGreen)
+                qualityChip(title: "Konfidenz", value: "\(Int(viewModel.snapshot.socConfidence * 100))%", tint: Theme.solarAmber)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -16,14 +16,14 @@ struct RootView: View {
                 TrendsView(viewModel: viewModel)
             }
             .tabItem {
-                Label("Trends", systemImage: "chart.xyaxis.line")
+                Label("Verläufe", systemImage: "chart.xyaxis.line")
             }
 
             NavigationStack {
                 ForecastView(viewModel: viewModel)
             }
             .tabItem {
-                Label("Forecast", systemImage: "clock.arrow.circlepath")
+                Label("Prognose", systemImage: "clock.arrow.circlepath")
             }
         }
         .tint(Theme.flowCyan)

@@ -15,13 +15,13 @@ struct ForecastView: View {
                 .padding(16)
             }
         }
-        .navigationTitle("Forecast")
+        .navigationTitle("Prognose")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var runtimeHero: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Estimated runtime")
+            Text("Geschätzte Laufzeit")
                 .font(.custom("AvenirNext-DemiBold", size: 16))
                 .foregroundStyle(Theme.textSecondary)
 
@@ -29,7 +29,7 @@ struct ForecastView: View {
                 .font(.custom("AvenirNextCondensed-Bold", size: 52))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text(viewModel.snapshot.driveMode ? "Drive mode detected · confidence reduced" : "Parked · full confidence path")
+            Text(viewModel.snapshot.driveMode ? "Fahrtmodus erkannt · Konfidenz reduziert" : "Geparkt · volle Konfidenz")
                 .font(.custom("AvenirNext-Medium", size: 13))
                 .foregroundStyle(Theme.flowCyan)
         }
@@ -48,7 +48,7 @@ struct ForecastView: View {
                         Text(scenario.description)
                             .font(.custom("AvenirNext-Regular", size: 13))
                             .foregroundStyle(Theme.textSecondary)
-                        Text("Confidence: \(scenario.confidence)")
+                        Text("Konfidenz: \(scenario.confidence)")
                             .font(.custom("AvenirNext-Medium", size: 12))
                             .foregroundStyle(scenario.tint)
                     }

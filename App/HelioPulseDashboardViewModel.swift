@@ -6,7 +6,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     @Published private(set) var snapshot: TelemetrySnapshot = .mock
     @Published private(set) var trendPoints: [TrendPoint] = TelemetrySnapshot.mockTrend
     @Published private(set) var forecastScenarios: [ForecastScenario] = ForecastScenario.mock
-    @Published private(set) var connectionState: String = "Scanning"
+    @Published private(set) var connectionState: String = "Suche nach Regler …"
     @Published private(set) var lastUpdatedText: String = "Just now"
 
     private let service: BluetoothTelemetryService
@@ -38,7 +38,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     private func update(with snapshot: TelemetrySnapshot) async {
         self.snapshot = snapshot
-        self.connectionState = snapshot.driveMode ? "Drive mode" : "Solar live"
+        self.connectionState = snapshot.driveMode ? "Fahrtmodus aktiv" : "Solar aktiv"
         self.lastUpdatedText = Self.relativeTimestamp(from: snapshot.timestamp)
         await store.append(snapshot)
         self.trendPoints = await store.trendPoints()
@@ -46,11 +46,11 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     }
 
     private static func forecast(for snapshot: TelemetrySnapshot) -> [ForecastScenario] {
-        let confidenceSuffix = snapshot.driveMode ? "drive-aware" : "parked"
+        let modus = snapshot.driveMode ? "Fahrtmodus" : "Geparkt"
         return [
-            ForecastScenario(name: "Conservative", description: "Cloud cover and higher load · \(confidenceSuffix)", runtime: driveAdjusted(hours: 12, snapshot: snapshot), confidence: confidenceLabel(for: 0.35, snapshot: snapshot), tint: Theme.warnCoral),
-            ForecastScenario(name: "Realistic", description: "Expected average profile · \(confidenceSuffix)", runtime: driveAdjusted(hours: 17, snapshot: snapshot), confidence: confidenceLabel(for: snapshot.socConfidence, snapshot: snapshot), tint: Theme.flowCyan),
-            ForecastScenario(name: "Optimistic", description: "Strong sun and lower load · \(confidenceSuffix)", runtime: driveAdjusted(hours: 23, snapshot: snapshot), confidence: confidenceLabel(for: 0.88, snapshot: snapshot), tint: Theme.stateGreen)
+            ForecastScenario(name: "Pessimistisch", description: "Bewölkt und hoher Verbrauch · \(modus)", runtime: driveAdjusted(hours: 12, snapshot: snapshot), confidence: confidenceLabel(for: 0.35, snapshot: snapshot), tint: Theme.warnCoral),
+            ForecastScenario(name: "Realistisch", description: "Durchschnittliches Profil · \(modus)", runtime: driveAdjusted(hours: 17, snapshot: snapshot), confidence: confidenceLabel(for: snapshot.socConfidence, snapshot: snapshot), tint: Theme.flowCyan),
+            ForecastScenario(name: "Optimistisch", description: "Starke Sonne, geringer Verbrauch · \(modus)", runtime: driveAdjusted(hours: 23, snapshot: snapshot), confidence: confidenceLabel(for: 0.88, snapshot: snapshot), tint: Theme.stateGreen)
         ]
     }
 
@@ -63,11 +63,11 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         let effective = snapshot.driveMode ? max(0.25, value - 0.2) : value
         switch effective {
         case 0..<0.45:
-            return "Low"
+            return "Niedrig"
         case 0.45..<0.75:
-            return "Medium"
+            return "Mittel"
         default:
-            return "High"
+            return "Hoch"
         }
     }
 

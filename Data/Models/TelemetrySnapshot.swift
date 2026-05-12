@@ -6,12 +6,30 @@ enum ChargeState: String, CaseIterable, Codable {
     case absorption = "Absorption"
     case float = "Float"
     case storage = "Storage"
+
+    var localizedName: String {
+        switch self {
+        case .off:        return "Aus"
+        case .bulk:       return "Bulk"
+        case .absorption: return "Absorption"
+        case .float:      return "Erhaltung"
+        case .storage:    return "Speicher"
+        }
+    }
 }
 
 enum PowerSource: String, CaseIterable, Codable {
     case solar = "Solar"
     case alternator = "Alternator"
     case load = "Load"
+
+    var localizedName: String {
+        switch self {
+        case .solar:       return "Solar"
+        case .alternator:  return "Lichtmaschine"
+        case .load:        return "Verbraucher"
+        }
+    }
 }
 
 struct TelemetrySnapshot: Identifiable, Codable {

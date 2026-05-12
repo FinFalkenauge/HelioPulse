@@ -17,13 +17,13 @@ struct TrendsView: View {
                 .padding(16)
             }
         }
-        .navigationTitle("Trends")
+        .navigationTitle("Verläufe")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("24h power flow")
+            Text("24h Leistungsfluss")
                 .font(.custom("AvenirNext-DemiBold", size: 18))
                 .foregroundStyle(Theme.textPrimary)
 
@@ -68,21 +68,21 @@ struct TrendsView: View {
     private var summaryCard: some View {
         HStack(spacing: 12) {
             statCard(title: "SOC", value: "\(Int(viewModel.snapshot.modeledSOC))%", tint: Theme.warnCoral)
-            statCard(title: "Battery", value: String(format: "%.2fV", viewModel.snapshot.batteryVoltage), tint: Theme.stateGreen)
-            statCard(title: "Source", value: viewModel.snapshot.primarySource.rawValue, tint: Theme.flowCyan)
+            statCard(title: "Batterie", value: String(format: "%.2fV", viewModel.snapshot.batteryVoltage), tint: Theme.stateGreen)
+            statCard(title: "Quelle", value: viewModel.snapshot.primarySource.localizedName, tint: Theme.flowCyan)
         }
     }
 
     private var legendCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("What you are seeing")
+            Text("Legende")
                 .font(.custom("AvenirNext-DemiBold", size: 16))
                 .foregroundStyle(Theme.textPrimary)
 
             HStack(spacing: 12) {
-                label(color: Theme.solarAmber, text: "Solar Input")
-                label(color: Theme.flowCyan, text: "Load")
-                label(color: Theme.stateGreen, text: "Battery")
+                label(color: Theme.solarAmber, text: "Solareingang")
+                label(color: Theme.flowCyan, text: "Verbrauch")
+                label(color: Theme.stateGreen, text: "Batterie")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
