@@ -1,0 +1,402 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */; };
+		194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */; };
+		1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DFD4B83D8D988EC9741191 /* ForecastView.swift */; };
+		47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */; };
+		5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */; };
+		5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */; };
+		887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */; };
+		AB9288D42E716F4071FCF575 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */; };
+		DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F346FD70F9B4189513732A5A /* Theme.swift */; };
+		EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9EEBAE0CD387023457445B /* TrendsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelioPulseApp.swift; sourceTree = "<group>"; };
+		102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothTelemetryService.swift; sourceTree = "<group>"; };
+		2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
+		5AAA52FF4F8682C64C79B497 /* HelioPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HelioPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySnapshot.swift; sourceTree = "<group>"; };
+		9B9EEBAE0CD387023457445B /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
+		B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastScenario.swift; sourceTree = "<group>"; };
+		C3DFD4B83D8D988EC9741191 /* ForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastView.swift; sourceTree = "<group>"; };
+		C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryStore.swift; sourceTree = "<group>"; };
+		D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		F346FD70F9B4189513732A5A /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		F4C729978F2A302347AF8400 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2915DDF7C3BA38C8EBB49C02 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				C49158FA2D5FAA6BC305938D /* TelemetryStore.swift */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		46D51C1341B18BF00B1CCC14 /* Forecast */ = {
+			isa = PBXGroup;
+			children = (
+				C3DFD4B83D8D988EC9741191 /* ForecastView.swift */,
+			);
+			path = Forecast;
+			sourceTree = "<group>";
+		};
+		64C5FC5661E5DC8EFFAC91B7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5AAA52FF4F8682C64C79B497 /* HelioPulse.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6CE018A63C2E28DBAC328780 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				46D51C1341B18BF00B1CCC14 /* Forecast */,
+				938C1A154AFEDB0438A77ED7 /* LiveDashboard */,
+				CF5DB3AB5535769861A48BB3 /* Trends */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		70DFD5A5808991F0BFD95A6C = {
+			isa = PBXGroup;
+			children = (
+				CD5AE98A270AC35E4A1214AA /* App */,
+				7B29A1C63D04735182B58145 /* Data */,
+				A3C2E07D71A52739E3A19DC0 /* DesignSystem */,
+				6CE018A63C2E28DBAC328780 /* Features */,
+				2915DDF7C3BA38C8EBB49C02 /* Persistence */,
+				64C5FC5661E5DC8EFFAC91B7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7B29A1C63D04735182B58145 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				8A7AFB101525A5FCCCE33294 /* Bluetooth */,
+				9F9594F87C85D6EDE5EA69A7 /* Models */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		8A7AFB101525A5FCCCE33294 /* Bluetooth */ = {
+			isa = PBXGroup;
+			children = (
+				102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */,
+			);
+			path = Bluetooth;
+			sourceTree = "<group>";
+		};
+		938C1A154AFEDB0438A77ED7 /* LiveDashboard */ = {
+			isa = PBXGroup;
+			children = (
+				2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */,
+			);
+			path = LiveDashboard;
+			sourceTree = "<group>";
+		};
+		9F9594F87C85D6EDE5EA69A7 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */,
+				7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A3C2E07D71A52739E3A19DC0 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				F346FD70F9B4189513732A5A /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		CD5AE98A270AC35E4A1214AA /* App */ = {
+			isa = PBXGroup;
+			children = (
+				053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */,
+				F4C729978F2A302347AF8400 /* Info.plist */,
+				D50B4A5BAB97AD6263A9D6A5 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		CF5DB3AB5535769861A48BB3 /* Trends */ = {
+			isa = PBXGroup;
+			children = (
+				9B9EEBAE0CD387023457445B /* TrendsView.swift */,
+			);
+			path = Trends;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		6D9205BC707C504D36E408DC /* HelioPulse */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 78898D555C8649A309EC3C03 /* Build configuration list for PBXNativeTarget "HelioPulse" */;
+			buildPhases = (
+				72FB1DBBB5710896B62A01A6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HelioPulse;
+			packageProductDependencies = (
+			);
+			productName = HelioPulse;
+			productReference = 5AAA52FF4F8682C64C79B497 /* HelioPulse.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5CF43919ED9475C4A5D3128B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 561384E785BB98E5CBDCEAD2 /* Build configuration list for PBXProject "HelioPulse" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 70DFD5A5808991F0BFD95A6C;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 64C5FC5661E5DC8EFFAC91B7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				6D9205BC707C504D36E408DC /* HelioPulse */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		72FB1DBBB5710896B62A01A6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */,
+				0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */,
+				1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */,
+				887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */,
+				5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */,
+				AB9288D42E716F4071FCF575 /* RootView.swift in Sources */,
+				194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */,
+				47BB52B945D252D423573739 /* TelemetryStore.swift in Sources */,
+				DD32FFE2E8ACB3F01B12CE15 /* Theme.swift in Sources */,
+				EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2C81E22894690D04EED80A36 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Debug;
+		};
+		3CE8D6E4ABD42EA6B008817C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.heliopulse.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9C7A1E90CDEEC5E426418E37 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Release;
+		};
+		E82A9CA00E7EF3D754AE0CE9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = App/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.heliopulse.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		561384E785BB98E5CBDCEAD2 /* Build configuration list for PBXProject "HelioPulse" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2C81E22894690D04EED80A36 /* Debug */,
+				9C7A1E90CDEEC5E426418E37 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		78898D555C8649A309EC3C03 /* Build configuration list for PBXNativeTarget "HelioPulse" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CE8D6E4ABD42EA6B008817C /* Debug */,
+				E82A9CA00E7EF3D754AE0CE9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5CF43919ED9475C4A5D3128B /* Project object */;
+}
