@@ -17,6 +17,7 @@
 		5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */; };
 		5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */; };
 		5E8D5C73B9A31A6F55278CBF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92FB60E0580764B40D8A59FD /* Assets.xcassets */; };
+		6DC0D4329C09F3D22C083B57 /* ForecastEnvironmentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE62FE76E111A351057E047 /* ForecastEnvironmentService.swift */; };
 		71A00E8156803673DE7A0D28 /* VictronRegisterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331302606861554607125546 /* VictronRegisterParser.swift */; };
 		874109392900AA6F6B094B08 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A32F31D5ABC6B3AB9843965B /* LaunchScreen.storyboard */; };
 		887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053124FAF7E3A778E3FBADCD /* HelioPulseApp.swift */; };
@@ -35,6 +36,7 @@
 		137C162114C2195E7F54D233 /* Volkswagen Type 2 Kombi T1 1967.fbx */ = {isa = PBXFileReference; path = "Volkswagen Type 2 Kombi T1 1967.fbx"; sourceTree = "<group>"; };
 		2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
 		331302606861554607125546 /* VictronRegisterParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronRegisterParser.swift; sourceTree = "<group>"; };
+		4BE62FE76E111A351057E047 /* ForecastEnvironmentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastEnvironmentService.swift; sourceTree = "<group>"; };
 		5AAA52FF4F8682C64C79B497 /* HelioPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HelioPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySnapshot.swift; sourceTree = "<group>"; };
 		92FB60E0580764B40D8A59FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -68,6 +70,14 @@
 				03AA5A251920641409D97A87 /* Models */,
 			);
 			path = Resources;
+			sourceTree = "<group>";
+		};
+		27286C6BCA42F3BC8020FECD /* Forecast */ = {
+			isa = PBXGroup;
+			children = (
+				4BE62FE76E111A351057E047 /* ForecastEnvironmentService.swift */,
+			);
+			path = Forecast;
 			sourceTree = "<group>";
 		};
 		2915DDF7C3BA38C8EBB49C02 /* Persistence */ = {
@@ -121,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				8A7AFB101525A5FCCCE33294 /* Bluetooth */,
+				27286C6BCA42F3BC8020FECD /* Forecast */,
 				9F9594F87C85D6EDE5EA69A7 /* Models */,
 			);
 			path = Data;
@@ -258,6 +269,7 @@
 			files = (
 				3689CDF1632128157441DBDC /* BatteryChemistry.swift in Sources */,
 				5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */,
+				6DC0D4329C09F3D22C083B57 /* ForecastEnvironmentService.swift in Sources */,
 				0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */,
 				1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */,
 				887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */,

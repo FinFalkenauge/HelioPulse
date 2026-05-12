@@ -32,6 +32,10 @@ struct ForecastView: View {
             Text(viewModel.hasLiveData ? (viewModel.snapshot.driveMode ? "Fahrtmodus erkannt · Konfidenz reduziert" : "Geparkt · volle Konfidenz") : "Warte auf Live-Telemetrie")
                 .font(.custom("AvenirNext-Medium", size: 13))
                 .foregroundStyle(Theme.flowCyan)
+
+            Text(viewModel.forecastContextText)
+                .font(.custom("AvenirNext-Regular", size: 12))
+                .foregroundStyle(Theme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard()

@@ -24,6 +24,8 @@
 	<string>HelioPulse uses Bluetooth to connect with your Victron SmartSolar controller and show live telemetry.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>HelioPulse uses Bluetooth to read Victron charger data for live dashboards and trends.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HelioPulse uses your location to improve solar forecast accuracy using sun path and weather context.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UISupportedInterfaceOrientations</key>

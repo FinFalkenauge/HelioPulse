@@ -28,6 +28,7 @@ targets:
         UIUserInterfaceStyle: Dark
         NSBluetoothAlwaysUsageDescription: HelioPulse uses Bluetooth to connect with your Victron SmartSolar controller and show live telemetry.
         NSBluetoothPeripheralUsageDescription: HelioPulse uses Bluetooth to read Victron charger data for live dashboards and trends.
+        NSLocationWhenInUseUsageDescription: HelioPulse uses your location to improve solar forecast accuracy using sun path and weather context.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown

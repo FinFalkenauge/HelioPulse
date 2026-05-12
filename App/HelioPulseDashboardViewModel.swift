@@ -12,10 +12,13 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     @Published private(set) var isConnected: Bool = false
     @Published private(set) var isUsingMockData: Bool = false
     @Published private(set) var batteryChemistry: BatteryChemistry = .unknown
+    @Published private(set) var forecastContextText: String = "Forecast: Nur Live-Telemetrie"
 
     private let service: BluetoothTelemetryService
+    private let environmentService = ForecastEnvironmentService()
     private let store = TelemetryStore()
     private var streamTask: Task<Void, Never>?
+    private var forecastContext: ForecastEnvironmentContext?
     private let defaults = UserDefaults.standard
     private let batteryChemistryKey = "heliopulse.batteryChemistry"
 
@@ -32,13 +35,25 @@ final class HelioPulseDashboardViewModel: ObservableObject {
                 self?.isConnected = text == "Bluetooth: Verbunden"
             }
         }
+
+        self.environmentService.onUpdate = { [weak self] context in
+            guard let self else { return }
+            self.forecastContext = context
+            if context.hasWeather {
+                self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter aktiv", context.latitude, context.longitude)
+            } else {
+                self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter fehlt", context.latitude, context.longitude)
+            }
+            self.forecastScenarios = self.forecast(for: self.snapshot)
+        }
     }
 
     func start() {
         streamTask?.cancel()
         connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Suche nach Victron Regler …"
         isConnected = false
-        forecastScenarios = Self.forecast(for: snapshot)
+        forecastScenarios = forecast(for: snapshot)
+        environmentService.start()
         streamTask = Task {
             await service.startScanning()
             let stream = service.telemetryStream()
@@ -51,6 +66,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     func stop() {
         streamTask?.cancel()
         streamTask = nil
+        environmentService.stop()
         Task {
             await service.stopScanning()
         }
@@ -64,7 +80,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.lastUpdatedText = Self.relativeTimestamp(from: self.snapshot.timestamp)
         await store.append(self.snapshot)
         self.trendPoints = await store.trendPoints(limit: 24)
-        self.forecastScenarios = Self.forecast(for: self.snapshot)
+        self.forecastScenarios = forecast(for: self.snapshot)
     }
 
     func setBatteryChemistry(_ chemistry: BatteryChemistry) {
@@ -73,7 +89,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
         if hasLiveData {
             snapshot = calibratedSnapshot(from: snapshot)
-            forecastScenarios = Self.forecast(for: snapshot)
+            forecastScenarios = forecast(for: snapshot)
         }
     }
 
@@ -108,44 +124,82 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         )
     }
 
-    private static func forecast(for snapshot: TelemetrySnapshot) -> [ForecastScenario] {
+    private func forecast(for snapshot: TelemetrySnapshot) -> [ForecastScenario] {
         let modus = snapshot.driveMode ? "Fahrtmodus" : "Geparkt"
-        let baseHours = runtimeHours(for: snapshot)
-
-        let pessimistic = scenarioRuntime(baseHours: baseHours, factor: 0.72)
-        let realistic = scenarioRuntime(baseHours: baseHours, factor: 1.0)
-        let optimistic = scenarioRuntime(baseHours: baseHours, factor: 1.35)
+        let pessimistic = Self.scenarioRuntime(hours: runtimeHours(for: snapshot, loadFactor: 1.2, weatherFactor: 0.75))
+        let realistic = Self.scenarioRuntime(hours: runtimeHours(for: snapshot, loadFactor: 1.0, weatherFactor: 1.0))
+        let optimistic = Self.scenarioRuntime(hours: runtimeHours(for: snapshot, loadFactor: 0.88, weatherFactor: 1.18))
 
         return [
-            ForecastScenario(name: "Pessimistisch", description: "Bewölkt und hoher Verbrauch · \(modus)", runtime: pessimistic, confidence: confidenceLabel(for: 0.35, snapshot: snapshot), tint: Theme.warnCoral),
-            ForecastScenario(name: "Realistisch", description: "Durchschnittliches Profil · \(modus)", runtime: realistic, confidence: confidenceLabel(for: snapshot.socConfidence, snapshot: snapshot), tint: Theme.flowCyan),
-            ForecastScenario(name: "Optimistisch", description: "Starke Sonne, geringer Verbrauch · \(modus)", runtime: optimistic, confidence: confidenceLabel(for: 0.88, snapshot: snapshot), tint: Theme.stateGreen)
+            ForecastScenario(name: "Pessimistisch", description: "Bewölkt und hoher Verbrauch · \(modus)", runtime: pessimistic, confidence: Self.confidenceLabel(for: 0.35, snapshot: snapshot), tint: Theme.warnCoral),
+            ForecastScenario(name: "Realistisch", description: "Durchschnittliches Profil · \(modus)", runtime: realistic, confidence: Self.confidenceLabel(for: snapshot.socConfidence, snapshot: snapshot), tint: Theme.flowCyan),
+            ForecastScenario(name: "Optimistisch", description: "Starke Sonne, geringer Verbrauch · \(modus)", runtime: optimistic, confidence: Self.confidenceLabel(for: 0.88, snapshot: snapshot), tint: Theme.stateGreen)
         ]
     }
 
-    private static func runtimeHours(for snapshot: TelemetrySnapshot) -> Double {
-        let nominalBatteryWh = max(600.0, snapshot.batteryVoltage * 100.0)
-        let remainingWh = nominalBatteryWh * max(0, min(1, snapshot.modeledSOC / 100.0))
+    private func runtimeHours(for snapshot: TelemetrySnapshot, loadFactor: Double, weatherFactor: Double) -> Double {
+        let capacityAh = 100.0
+        let batteryCapacityWh = max(800.0, snapshot.batteryVoltage * capacityAh)
+        var remainingWh = batteryCapacityWh * max(0, min(1, snapshot.modeledSOC / 100.0))
+        let baseLoadW = max(10.0, snapshot.loadCurrent * snapshot.batteryVoltage) * loadFactor
 
-        let loadPower = max(1.0, snapshot.loadCurrent * snapshot.batteryVoltage)
-        let solarContribution = max(0, snapshot.solarPower)
+        let now = Date()
+        let context = forecastContext
 
-        let netDischargePower: Double
-        if solarContribution >= loadPower {
-            netDischargePower = 1.0
-        } else {
-            netDischargePower = max(1.0, loadPower - solarContribution)
+        let baseSolarPotential: Double = {
+            guard let context else { return max(snapshot.solarPower, 120.0) }
+            let sunNow = SolarGeometry.elevationFactor(date: now, latitude: context.latitude, longitude: context.longitude)
+            let weatherNow = hourlyWeatherFactor(at: now, context: context)
+            let combinedNow = max(0.08, 0.55 * sunNow + 0.45 * weatherNow)
+            return max(80.0, snapshot.solarPower / combinedNow)
+        }()
+
+        for hour in 0..<72 {
+            let date = Calendar.current.date(byAdding: .hour, value: hour, to: now) ?? now
+            let sunFactor: Double
+            let weatherEnv: Double
+
+            if let context {
+                sunFactor = SolarGeometry.elevationFactor(date: date, latitude: context.latitude, longitude: context.longitude)
+                weatherEnv = hourlyWeatherFactor(at: date, context: context)
+            } else {
+                sunFactor = 0.65
+                weatherEnv = 0.65
+            }
+
+            let terrainFactor = context != nil ? 1 + min(0.04, (context?.altitude ?? 0) / 10000.0) : 1.0
+            let solarW = max(0, baseSolarPotential * (0.58 * sunFactor + 0.42 * weatherEnv) * weatherFactor * terrainFactor)
+            let netWh = solarW - baseLoadW
+            remainingWh = min(batteryCapacityWh, remainingWh + netWh)
+
+            if remainingWh <= 0 {
+                return max(0.5, Double(hour) + max(0.1, batteryCapacityWh / max(baseLoadW, 1) * 0.05))
+            }
         }
 
-        let hours = remainingWh / netDischargePower
         if snapshot.driveMode {
-            return max(1.0, hours * 0.85)
+            return 72
         }
-        return max(0.5, hours)
+
+        return 72
     }
 
-    private static func scenarioRuntime(baseHours: Double, factor: Double) -> String {
-        let hours = baseHours * factor
+    private func hourlyWeatherFactor(at date: Date, context: ForecastEnvironmentContext) -> Double {
+        guard let nearest = nearestWeatherPoint(to: date, context: context) else { return 0.65 }
+
+        let cloudPenalty = 1 - 0.7 * nearest.cloudCover
+        let radiationFactor = min(1.2, nearest.shortwaveRadiation / 850.0)
+        let directShare = nearest.shortwaveRadiation > 0 ? nearest.directRadiation / max(1, nearest.shortwaveRadiation) : 0
+        let diffuseBoost = min(0.25, nearest.diffuseRadiation / 1200.0)
+
+        return max(0.05, min(1.2, 0.4 * cloudPenalty + 0.45 * radiationFactor + 0.15 * directShare + diffuseBoost))
+    }
+
+    private func nearestWeatherPoint(to date: Date, context: ForecastEnvironmentContext) -> ForecastHourlyPoint? {
+        context.hourly.min(by: { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) })
+    }
+
+    private static func scenarioRuntime(hours: Double) -> String {
         if hours >= 72 {
             return "72h+"
         }
