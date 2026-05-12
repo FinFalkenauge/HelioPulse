@@ -26,18 +26,19 @@ struct VictronRegisterParser {
         case floating = 5
     }
     
-    /// Converts raw register values to a TelemetrySnapshot.
-    static func buildSnapshot(
+    /// Converts raw VE.Direct text field values to a TelemetrySnapshot.
+    /// Text-mode uses mV/mA/permille units, so scaling differs from binary dumps.
+    static func buildTextSnapshot(
         registers: [Register: Int],
         timestamp: Date = Date()
     ) -> TelemetrySnapshot {
-        let solarVoltage = Double(registers[.panelVoltage] ?? 0) / 100.0
-        let solarCurrent = Double(registers[.panelCurrent] ?? 0) / 100.0
-        let batteryVoltage = Double(registers[.batteryVoltage] ?? 0) / 100.0
-        let batteryCurrent = Double(registers[.batteryCurrent] ?? 0) / 100.0
+        let solarVoltage = Double(registers[.panelVoltage] ?? 0) / 1000.0
+        let solarCurrent = Double(registers[.panelCurrent] ?? 0) / 1000.0
+        let batteryVoltage = Double(registers[.batteryVoltage] ?? 0) / 1000.0
+        let batteryCurrent = Double(registers[.batteryCurrent] ?? 0) / 1000.0
         let solarPower = Double(registers[.chargePower] ?? 0)
         let stateValue = registers[.chargeState] ?? 0
-        let modeledSOC = Double(registers[.stateOfCharge] ?? 50)
+        let modeledSOC = Double(registers[.stateOfCharge] ?? 0) / 10.0
         
         // Map charge state
         let chargeState: ChargeState
@@ -47,8 +48,8 @@ struct VictronRegisterParser {
             chargeState = .float
         }
         
-        // Solar power → estimated load current (simplified)
-        let loadCurrent = solarCurrent > 0 ? solarCurrent * 0.2 : 0.0
+        // Load current is reported directly by VE.Direct when available.
+        let loadCurrent = Double(registers[.panelCurrent] ?? registers[.batteryCurrent] ?? 0) / 1000.0
         
         return TelemetrySnapshot(
             id: UUID(),
@@ -63,6 +64,45 @@ struct VictronRegisterParser {
             modeledSOC: modeledSOC,
             socConfidence: 0.85,  // Victron MPPT is generally accurate
             driveMode: false,      // MPPT doesn't know about vehicle state
+            primarySource: .solar
+        )
+    }
+
+    /// Converts raw binary register values to a TelemetrySnapshot.
+    static func buildBinarySnapshot(
+        registers: [Register: Int],
+        timestamp: Date = Date()
+    ) -> TelemetrySnapshot {
+        let solarVoltage = Double(registers[.panelVoltage] ?? 0) / 100.0
+        let solarCurrent = Double(registers[.panelCurrent] ?? 0) / 100.0
+        let batteryVoltage = Double(registers[.batteryVoltage] ?? 0) / 100.0
+        let batteryCurrent = Double(registers[.batteryCurrent] ?? 0) / 100.0
+        let solarPower = Double(registers[.chargePower] ?? 0)
+        let stateValue = registers[.chargeState] ?? 0
+        let modeledSOC = Double(registers[.stateOfCharge] ?? 50)
+
+        let chargeState: ChargeState
+        if let state = ChargeStateValue(rawValue: UInt16(stateValue)) {
+            chargeState = mapChargeState(state)
+        } else {
+            chargeState = .float
+        }
+
+        let loadCurrent = Double(registers[.panelCurrent] ?? registers[.batteryCurrent] ?? 0) / 100.0
+
+        return TelemetrySnapshot(
+            id: UUID(),
+            timestamp: timestamp,
+            solarPower: solarPower,
+            solarVoltage: solarVoltage,
+            solarCurrent: solarCurrent,
+            batteryVoltage: batteryVoltage,
+            batteryCurrent: batteryCurrent,
+            loadCurrent: loadCurrent,
+            chargeState: chargeState,
+            modeledSOC: modeledSOC,
+            socConfidence: 0.85,
+            driveMode: false,
             primarySource: .solar
         )
     }
@@ -94,49 +134,12 @@ struct VictronRegisterParser {
     
     /// Parse a flat Victron text frame (key=value pairs, LF-separated).
     static func parseTextFrame(_ text: String) -> [Register: Int]? {
-        var registers: [Register: Int] = [:]
-        
-        let lines = text.components(separatedBy: .newlines)
-        for line in lines {
-            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedLine.isEmpty else {
-                continue
-            }
+        return parseFieldBlob(text)
+    }
 
-            let parts: [String]
-            if let tabIndex = trimmedLine.firstIndex(of: "\t") {
-                let keyPart = String(trimmedLine[..<tabIndex])
-                let valuePart = String(trimmedLine[trimmedLine.index(after: tabIndex)...])
-                parts = [keyPart, valuePart]
-            } else if let eqIndex = trimmedLine.firstIndex(of: "=") {
-                let keyPart = String(trimmedLine[..<eqIndex])
-                let valuePart = String(trimmedLine[trimmedLine.index(after: eqIndex)...])
-                parts = [keyPart, valuePart]
-            } else {
-                continue
-            }
-
-            let key = parts[0].trimmingCharacters(in: .whitespaces).uppercased()
-            let valueStr = parts[1].trimmingCharacters(in: .whitespaces)
-            guard !key.isEmpty, let value = Int(valueStr) else {
-                continue
-            }
-            
-            // Map common Victron field names to registers
-            switch key {
-            case "V": registers[.batteryVoltage] = value
-            case "VPV": registers[.panelVoltage] = value
-            case "PPV": registers[.chargePower] = value
-            case "I": registers[.batteryCurrent] = value
-            case "IL": registers[.panelCurrent] = value
-            case "SOC": registers[.stateOfCharge] = value
-            case "CS": registers[.chargeState] = value
-            case "ERR": registers[.errorCode] = value
-            default: break
-            }
-        }
-        
-        return registers.isEmpty ? nil : registers
+    /// Parse a loose Victron text fragment where separators may be corrupted or fragmented.
+    static func parseLooseTextFrame(_ text: String) -> [Register: Int]? {
+        return parseFieldBlob(text)
     }
     
     // MARK: - Private Helpers
@@ -155,6 +158,61 @@ struct VictronRegisterParser {
             return .absorption
         case .floating:
             return .float
+        }
+    }
+
+    private static func parseFieldBlob(_ text: String) -> [Register: Int]? {
+        var registers: [Register: Int] = [:]
+
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        for line in normalized.components(separatedBy: .newlines) {
+            let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedLine.isEmpty else { continue }
+
+            let separators = ["\t", "=", ":", " "]
+            let splitParts: [String]
+            if let separator = separators.first(where: { trimmedLine.contains($0) }) {
+                let parts = trimmedLine.split(separator: Character(separator), maxSplits: 1, omittingEmptySubsequences: true)
+                splitParts = parts.map(String.init)
+            } else {
+                continue
+            }
+
+            guard splitParts.count == 2 else { continue }
+
+            let key = splitParts[0].trimmingCharacters(in: .whitespaces).uppercased()
+            let valueStr = splitParts[1].trimmingCharacters(in: .whitespaces)
+            guard !key.isEmpty else { continue }
+
+            if let value = parseInt(valueStr) {
+                mapTextField(key: key, value: value, registers: &registers)
+            }
+        }
+
+        return registers.isEmpty ? nil : registers
+    }
+
+    private static func parseInt(_ value: String) -> Int? {
+        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleaned != "---", cleaned.uppercased() != "N/A" else { return nil }
+        return Int(cleaned)
+    }
+
+    private static func mapTextField(key: String, value: Int, registers: inout [Register: Int]) {
+        switch key {
+        case "V": registers[.batteryVoltage] = value
+        case "VPV": registers[.panelVoltage] = value
+        case "PPV", "P": registers[.chargePower] = value
+        case "I": registers[.batteryCurrent] = value
+        case "IL": registers[.panelCurrent] = value
+        case "SOC": registers[.stateOfCharge] = value
+        case "CS": registers[.chargeState] = value
+        case "ERR": registers[.errorCode] = value
+        default:
+            break
         }
     }
 }

@@ -284,16 +284,19 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private func parseVictronData(_ data: Data) -> TelemetrySnapshot? {
         // Try to parse as Victron register frame
         if let registers = VictronRegisterParser.parseFrame(data) {
-            return VictronRegisterParser.buildSnapshot(registers: registers)
+            return VictronRegisterParser.buildBinarySnapshot(registers: registers)
         }
         
         // Fall back to parsing as text frame
         let rawText = String(data: data, encoding: .utf8) ?? sanitizedASCIIString(from: data)
         if !rawText.isEmpty {
-            let text = rawText
-            textBuffer.append(text)
+            textBuffer.append(rawText)
             if textBuffer.count > 4096 {
                 textBuffer.removeFirst(textBuffer.count - 4096)
+            }
+
+            if let registers = VictronRegisterParser.parseTextFrame(rawText) {
+                return VictronRegisterParser.buildTextSnapshot(registers: registers)
             }
 
             let parts = textBuffer.components(separatedBy: .newlines)
@@ -301,15 +304,19 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                 textBuffer = parts.last ?? ""
                 let completeBlock = parts.dropLast().joined(separator: "\n")
                 if let registers = VictronRegisterParser.parseTextFrame(completeBlock) {
-                    return VictronRegisterParser.buildSnapshot(registers: registers)
+                    return VictronRegisterParser.buildTextSnapshot(registers: registers)
                 }
+            }
+
+            if let registers = VictronRegisterParser.parseLooseTextFrame(rawText) {
+                return VictronRegisterParser.buildTextSnapshot(registers: registers)
             }
 
             // Some VE.Direct payloads terminate with "Checksum". Parse eagerly when detected.
             if textBuffer.localizedCaseInsensitiveContains("CHECKSUM"),
                let registers = VictronRegisterParser.parseTextFrame(textBuffer) {
                 textBuffer.removeAll(keepingCapacity: true)
-                return VictronRegisterParser.buildSnapshot(registers: registers)
+                return VictronRegisterParser.buildTextSnapshot(registers: registers)
             }
         }
         
