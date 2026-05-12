@@ -39,6 +39,10 @@ final class ForecastEnvironmentService: NSObject {
     private let locationManager = CLLocationManager()
     private var currentTask: Task<Void, Never>?
     private var lastWeatherFetch: Date?
+    private let defaults = UserDefaults.standard
+    private let terrainCachePrefix = "heliopulse.terrain.horizon."
+    private let terrainCacheTimePrefix = "heliopulse.terrain.horizon.updated."
+    private let terrainCacheTTL: TimeInterval = 60 * 60 * 24 * 7
 
     override init() {
         super.init()
@@ -120,6 +124,11 @@ final class ForecastEnvironmentService: NSObject {
     }
 
     private func fetchTerrainHorizon(location: CLLocation) async -> HorizonProfile? {
+        let tileKey = terrainTileKey(for: location.coordinate)
+        if let cached = loadCachedHorizonProfile(tileKey: tileKey) {
+            return cached
+        }
+
         let sectorCount = 16
         let sectorStep = 360.0 / Double(sectorCount)
         let distances: [Double] = [500, 1000, 2000, 3500]
@@ -166,7 +175,9 @@ final class ForecastEnvironmentService: NSObject {
                 obstructionAngles[sample.sector] = max(obstructionAngles[sample.sector], angleDegrees)
             }
 
-            return HorizonProfile(sectorStepDegrees: sectorStep, obstructionBySectorDegrees: obstructionAngles)
+            let profile = HorizonProfile(sectorStepDegrees: sectorStep, obstructionBySectorDegrees: obstructionAngles)
+            saveCachedHorizonProfile(profile, tileKey: tileKey)
+            return profile
         } catch {
             return nil
         }
@@ -186,6 +197,48 @@ final class ForecastEnvironmentService: NSObject {
         )
 
         return CLLocationCoordinate2D(latitude: lat2 * 180 / .pi, longitude: lon2 * 180 / .pi)
+    }
+
+    private func terrainTileKey(for coordinate: CLLocationCoordinate2D) -> String {
+        let latBucket = Int((coordinate.latitude * 100).rounded())
+        let lonBucket = Int((coordinate.longitude * 100).rounded())
+        return "\(latBucket)_\(lonBucket)"
+    }
+
+    private func loadCachedHorizonProfile(tileKey: String) -> HorizonProfile? {
+        let timestampKey = terrainCacheTimePrefix + tileKey
+        if let timestamp = defaults.object(forKey: timestampKey) as? Date {
+            if Date().timeIntervalSince(timestamp) > terrainCacheTTL {
+                defaults.removeObject(forKey: terrainCachePrefix + tileKey)
+                defaults.removeObject(forKey: timestampKey)
+                return nil
+            }
+        } else {
+            return nil
+        }
+
+        guard let data = defaults.data(forKey: terrainCachePrefix + tileKey) else {
+            return nil
+        }
+
+        do {
+            let cached = try JSONDecoder().decode(CachedHorizonProfile.self, from: data)
+            return HorizonProfile(sectorStepDegrees: cached.sectorStepDegrees, obstructionBySectorDegrees: cached.obstructionBySectorDegrees)
+        } catch {
+            return nil
+        }
+    }
+
+    private func saveCachedHorizonProfile(_ profile: HorizonProfile, tileKey: String) {
+        let cached = CachedHorizonProfile(
+            sectorStepDegrees: profile.sectorStepDegrees,
+            obstructionBySectorDegrees: profile.obstructionBySectorDegrees
+        )
+
+        guard let data = try? JSONEncoder().encode(cached) else { return }
+
+        defaults.set(data, forKey: terrainCachePrefix + tileKey)
+        defaults.set(Date(), forKey: terrainCacheTimePrefix + tileKey)
     }
 }
 
@@ -260,6 +313,11 @@ struct SolarGeometry {
 
 private struct OpenMeteoElevationResponse: Decodable {
     let elevation: [Double]
+}
+
+private struct CachedHorizonProfile: Codable {
+    let sectorStepDegrees: Double
+    let obstructionBySectorDegrees: [Double]
 }
 
 private struct OpenMeteoResponse: Decodable {
