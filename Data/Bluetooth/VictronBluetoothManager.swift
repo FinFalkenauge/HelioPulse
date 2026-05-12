@@ -31,8 +31,11 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private var scanTimeoutTask: Task<Void, Never>?
     private var noDataTimeoutTask: Task<Void, Never>?
     private var readPollTask: Task<Void, Never>?
+    private var hexPollTask: Task<Void, Never>?
     private var readableCharacteristics: [CBCharacteristic] = []
+    private var writableCharacteristics: [CBCharacteristic] = []
     private var textBuffer = ""
+    private var hexBuffer = ""
     private var hasReceivedAnyPayloadSinceConnect = false
     private var hasReceivedTelemetrySinceConnect = false
     private var payloadPreviewCount = 0
@@ -74,6 +77,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         noDataTimeoutTask = nil
         readPollTask?.cancel()
         readPollTask = nil
+        hexPollTask?.cancel()
+        hexPollTask = nil
         if let peripheral = connectedPeripheral {
             centralManager?.cancelPeripheralConnection(peripheral)
         }
@@ -81,8 +86,11 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         txCharacteristic = nil
         rxCharacteristic = nil
         readableCharacteristics.removeAll()
+        writableCharacteristics.removeAll()
         hasReceivedAnyPayloadSinceConnect = false
         hasReceivedTelemetrySinceConnect = false
+        textBuffer.removeAll(keepingCapacity: true)
+        hexBuffer.removeAll(keepingCapacity: true)
         payloadPreviewCount = 0
         parseMissCount = 0
         onConnectionStateChange?(.idle)
@@ -134,6 +142,9 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         hasReceivedAnyPayloadSinceConnect = false
         hasReceivedTelemetrySinceConnect = false
         readableCharacteristics.removeAll()
+        writableCharacteristics.removeAll()
+        textBuffer.removeAll(keepingCapacity: true)
+        hexBuffer.removeAll(keepingCapacity: true)
         logger.notice("Connected to peripheral \(peripheral.identifier.uuidString, privacy: .public)")
         onConnectionStateChange?(.connected)
         // Discover all services for maximum compatibility across Victron firmware variants.
@@ -163,12 +174,15 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         noDataTimeoutTask = nil
         readPollTask?.cancel()
         readPollTask = nil
+        hexPollTask?.cancel()
+        hexPollTask = nil
         hasReceivedAnyPayloadSinceConnect = false
         hasReceivedTelemetrySinceConnect = false
         connectedPeripheral = nil
         txCharacteristic = nil
         rxCharacteristic = nil
         readableCharacteristics.removeAll()
+        writableCharacteristics.removeAll()
         retryOrRescan(on: central)
     }
     
@@ -223,6 +237,9 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
                     if characteristic.properties.contains(.notify) || characteristic.properties.contains(.indicate) {
                         peripheral.setNotifyValue(true, for: characteristic)
                     }
+                    if characteristic.properties.contains(.write) || characteristic.properties.contains(.writeWithoutResponse) {
+                        writableCharacteristics.append(characteristic)
+                    }
                     if characteristic.properties.contains(.read) {
                         readableCharacteristics.append(characteristic)
                         peripheral.readValue(for: characteristic)
@@ -233,6 +250,7 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         
         // Start reading initial data
         readVictronRegisters()
+        startHexPolling(for: peripheral)
     }
     
     func peripheral(
@@ -282,6 +300,10 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     
     /// Parse Victron VE.Direct BLE frame into TelemetrySnapshot.
     private func parseVictronData(_ data: Data) -> TelemetrySnapshot? {
+        if let hexSnapshot = parseHexVictronData(data) {
+            return hexSnapshot
+        }
+
         // Try to parse as Victron register frame
         if let registers = VictronRegisterParser.parseFrame(data) {
             return VictronRegisterParser.buildBinarySnapshot(registers: registers)
@@ -321,6 +343,129 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
         
         return nil
+    }
+
+    private func parseHexVictronData(_ data: Data) -> TelemetrySnapshot? {
+        guard var text = String(data: data, encoding: .ascii) else {
+            return nil
+        }
+
+        // Normalize and append to stream buffer.
+        text = text.replacingOccurrences(of: "\r", with: "")
+        hexBuffer.append(text)
+        if hexBuffer.count > 8192 {
+            hexBuffer.removeFirst(hexBuffer.count - 8192)
+        }
+
+        var snapshot: TelemetrySnapshot?
+        let frames = hexBuffer.split(separator: "\n", omittingEmptySubsequences: false)
+        guard frames.count > 1 else {
+            return nil
+        }
+
+        hexBuffer = String(frames.last ?? "")
+        for raw in frames.dropLast() {
+            let frame = String(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard frame.hasPrefix(":"), frame.count >= 4 else { continue }
+            if let parsed = decodeHexFrame(frame), let item = applyHexFrame(parsed) {
+                snapshot = item
+            }
+        }
+        return snapshot
+    }
+
+    private func decodeHexFrame(_ frame: String) -> (code: UInt8, bytes: [UInt8])? {
+        let payload = String(frame.dropFirst())
+        guard let code = UInt8(String(payload.prefix(1)), radix: 16) else { return nil }
+        let hexPairs = String(payload.dropFirst())
+        guard hexPairs.count % 2 == 0 else { return nil }
+
+        var bytes: [UInt8] = []
+        bytes.reserveCapacity(hexPairs.count / 2)
+
+        var idx = hexPairs.startIndex
+        while idx < hexPairs.endIndex {
+            let next = hexPairs.index(idx, offsetBy: 2)
+            guard let byte = UInt8(hexPairs[idx..<next], radix: 16) else { return nil }
+            bytes.append(byte)
+            idx = next
+        }
+
+        guard let check = bytes.last else { return nil }
+        let dataBytes = bytes.dropLast()
+        let sum = Int(code) + dataBytes.reduce(0, { $0 + Int($1) }) + Int(check)
+        guard (sum & 0xFF) == 0x55 else {
+            return nil
+        }
+        return (code, bytes)
+    }
+
+    private func applyHexFrame(_ frame: (code: UInt8, bytes: [UInt8])) -> TelemetrySnapshot? {
+        // Get response (7) or async (A) have register id + flags + value + check.
+        guard frame.code == 0x07 || frame.code == 0x0A else { return nil }
+        guard frame.bytes.count >= 5 else { return nil }
+
+        let body = Array(frame.bytes.dropLast())
+        guard body.count >= 4 else { return nil }
+        let registerId = UInt16(body[0]) | (UInt16(body[1]) << 8)
+        let valueBytes = Array(body.dropFirst(3))
+
+        guard let value = littleEndianUnsigned(from: valueBytes) else { return nil }
+
+        switch registerId {
+        case 0xEDD5: // charger voltage (0.01V)
+            latestHexBatteryVoltage = Double(value) / 100.0
+        case 0xEDD7: // charger current (0.1A)
+            latestHexBatteryCurrent = Double(value) / 10.0
+        case 0xEDDB: // charger internal temperature (0.01C)
+            latestHexTemperature = Double(Int16(bitPattern: UInt16(truncatingIfNeeded: value))) / 100.0
+        case 0x0201: // device state
+            latestHexChargeState = Int(value)
+        case 0x0100: // product id
+            logger.notice("HEX product id response value=0x\(String(value, radix: 16), privacy: .public)")
+        default:
+            break
+        }
+
+        guard latestHexBatteryVoltage > 0 else { return nil }
+        let solarPower = max(0, latestHexBatteryVoltage * max(0, latestHexBatteryCurrent))
+        let chargeState = mapHexChargeState(latestHexChargeState)
+
+        return TelemetrySnapshot(
+            id: UUID(),
+            timestamp: .now,
+            solarPower: solarPower,
+            solarVoltage: latestHexBatteryVoltage,
+            solarCurrent: max(0, latestHexBatteryCurrent),
+            batteryVoltage: latestHexBatteryVoltage,
+            batteryCurrent: latestHexBatteryCurrent,
+            loadCurrent: max(0, latestHexBatteryCurrent * 0.2),
+            chargeState: chargeState,
+            modeledSOC: latestHexModeledSoc,
+            socConfidence: 0.55,
+            driveMode: false,
+            primarySource: .solar
+        )
+    }
+
+    private func littleEndianUnsigned(from bytes: [UInt8]) -> UInt32? {
+        guard !bytes.isEmpty, bytes.count <= 4 else { return nil }
+        var value: UInt32 = 0
+        for (index, byte) in bytes.enumerated() {
+            value |= UInt32(byte) << (UInt32(index) * 8)
+        }
+        return value
+    }
+
+    private func mapHexChargeState(_ state: Int) -> ChargeState {
+        switch state {
+        case 0: return .off
+        case 3: return .bulk
+        case 4: return .absorption
+        case 5: return .float
+        case 6: return .storage
+        default: return .float
+        }
     }
 
     private func sanitizedASCIIString(from data: Data) -> String {
@@ -399,6 +544,52 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         }
     }
 
+    private func startHexPolling(for peripheral: CBPeripheral) {
+        hexPollTask?.cancel()
+
+        // Prime with discovery-style requests.
+        sendHexCommand(command: 0x01, payload: [], to: peripheral) // ping
+        sendHexCommand(command: 0x04, payload: [], to: peripheral) // product id
+
+        hexPollTask = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard self.connectedPeripheral?.identifier == peripheral.identifier else { continue }
+
+                // Poll key runtime registers from BlueSolar HEX protocol.
+                self.sendHexGet(register: 0xEDD5, to: peripheral) // charger voltage
+                self.sendHexGet(register: 0xEDD7, to: peripheral) // charger current
+                self.sendHexGet(register: 0x0201, to: peripheral) // device state
+            }
+        }
+    }
+
+    private func sendHexGet(register: UInt16, to peripheral: CBPeripheral) {
+        let payload: [UInt8] = [UInt8(register & 0xFF), UInt8((register >> 8) & 0xFF), 0x00]
+        sendHexCommand(command: 0x07, payload: payload, to: peripheral)
+    }
+
+    private func sendHexCommand(command: UInt8, payload: [UInt8], to peripheral: CBPeripheral) {
+        guard !writableCharacteristics.isEmpty else { return }
+
+        let sum = (Int(command) + payload.reduce(0, { $0 + Int($1) })) & 0xFF
+        let check = UInt8((0x55 - sum) & 0xFF)
+
+        var frame = ":\(String(command, radix: 16).uppercased())"
+        for byte in payload + [check] {
+            frame += String(format: "%02X", byte)
+        }
+        frame += "\n"
+
+        guard let data = frame.data(using: .ascii) else { return }
+
+        for characteristic in writableCharacteristics {
+            let type: CBCharacteristicWriteType = characteristic.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+            peripheral.writeValue(data, for: characteristic, type: type)
+        }
+        logger.debug("Sent HEX frame=\(frame, privacy: .public)")
+    }
+
     private func payloadPreview(for data: Data) -> String {
         let ascii = sanitizedASCIIString(from: data)
             .replacingOccurrences(of: "\n", with: "\\n")
@@ -423,5 +614,60 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         case .poweredOn: return "poweredOn"
         @unknown default: return "other"
         }
+    }
+
+    private var latestHexBatteryVoltage: Double {
+        get { _latestHexBatteryVoltage }
+        set { _latestHexBatteryVoltage = newValue }
+    }
+
+    private var latestHexBatteryCurrent: Double {
+        get { _latestHexBatteryCurrent }
+        set { _latestHexBatteryCurrent = newValue }
+    }
+
+    private var latestHexTemperature: Double {
+        get { _latestHexTemperature }
+        set { _latestHexTemperature = newValue }
+    }
+
+    private var latestHexChargeState: Int {
+        get { _latestHexChargeState }
+        set { _latestHexChargeState = newValue }
+    }
+
+    private var latestHexModeledSoc: Double {
+        get { _latestHexModeledSoc }
+        set { _latestHexModeledSoc = newValue }
+    }
+
+    private static var _hexStorage = HexStorage()
+    private var _latestHexBatteryVoltage: Double {
+        get { Self._hexStorage.latestHexBatteryVoltage }
+        set { Self._hexStorage.latestHexBatteryVoltage = newValue }
+    }
+    private var _latestHexBatteryCurrent: Double {
+        get { Self._hexStorage.latestHexBatteryCurrent }
+        set { Self._hexStorage.latestHexBatteryCurrent = newValue }
+    }
+    private var _latestHexTemperature: Double {
+        get { Self._hexStorage.latestHexTemperature }
+        set { Self._hexStorage.latestHexTemperature = newValue }
+    }
+    private var _latestHexChargeState: Int {
+        get { Self._hexStorage.latestHexChargeState }
+        set { Self._hexStorage.latestHexChargeState = newValue }
+    }
+    private var _latestHexModeledSoc: Double {
+        get { Self._hexStorage.latestHexModeledSoc }
+        set { Self._hexStorage.latestHexModeledSoc = newValue }
+    }
+
+    private struct HexStorage {
+        var latestHexBatteryVoltage: Double = 0
+        var latestHexBatteryCurrent: Double = 0
+        var latestHexTemperature: Double = 0
+        var latestHexChargeState: Int = 0
+        var latestHexModeledSoc: Double = 0
     }
 }
