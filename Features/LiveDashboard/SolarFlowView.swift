@@ -177,7 +177,7 @@ struct SolarFlowView: View {
                 }
 
                 if isSocEstimated {
-                    Text("SOC nur geschatzt (Batterietyp fehlt)")
+                    Text("SOC bleibt eine Schatzung")
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(Theme.textSecondary)
                 }

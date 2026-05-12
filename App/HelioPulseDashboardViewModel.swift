@@ -39,6 +39,9 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.environmentService.onUpdate = { [weak self] context in
             guard let self else { return }
             self.forecastContext = context
+            if self.hasLiveData {
+                self.snapshot = self.applyPhysicalGuards(to: self.snapshot)
+            }
             if context.hasWeather && context.hasTerrain {
                 self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter+Terrain aktiv", context.latitude, context.longitude)
             } else if context.hasWeather {
@@ -75,7 +78,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     }
 
     private func update(with snapshot: TelemetrySnapshot) async {
-        self.snapshot = calibratedSnapshot(from: snapshot)
+        self.snapshot = applyPhysicalGuards(to: calibratedSnapshot(from: snapshot))
         self.hasLiveData = true
         self.connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Verbunden"
         self.isConnected = !isUsingMockData
@@ -121,6 +124,44 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             chargeState: source.chargeState,
             modeledSOC: max(0, min(100, modeledSOC)),
             socConfidence: max(0, min(1, socConfidence)),
+            driveMode: source.driveMode,
+            primarySource: source.primarySource
+        )
+    }
+
+    private func applyPhysicalGuards(to source: TelemetrySnapshot) -> TelemetrySnapshot {
+        var solarPower = source.solarPower
+        var solarCurrent = source.solarCurrent
+        var solarVoltage = source.solarVoltage
+
+        if let context = forecastContext {
+            let sun = SolarGeometry.position(date: source.timestamp, latitude: context.latitude, longitude: context.longitude)
+            if sun.elevationDegrees < -2 || sun.elevationFactor < 0.01 {
+                solarPower = 0
+                solarCurrent = 0
+                solarVoltage = 0
+            }
+        } else {
+            let hour = Calendar.current.component(.hour, from: source.timestamp)
+            if (hour >= 22 || hour <= 4) && solarPower > 20 {
+                solarPower = 0
+                solarCurrent = 0
+                solarVoltage = 0
+            }
+        }
+
+        return TelemetrySnapshot(
+            id: source.id,
+            timestamp: source.timestamp,
+            solarPower: solarPower,
+            solarVoltage: solarVoltage,
+            solarCurrent: solarCurrent,
+            batteryVoltage: source.batteryVoltage,
+            batteryCurrent: source.batteryCurrent,
+            loadCurrent: source.loadCurrent,
+            chargeState: source.chargeState,
+            modeledSOC: source.modeledSOC,
+            socConfidence: source.socConfidence,
             driveMode: source.driveMode,
             primarySource: source.primarySource
         )
