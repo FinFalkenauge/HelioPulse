@@ -33,7 +33,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
     private var readPollTask: Task<Void, Never>?
     private var readableCharacteristics: [CBCharacteristic] = []
     private var textBuffer = ""
-    private var hasReceivedDataSinceConnect = false
+    private var hasReceivedAnyPayloadSinceConnect = false
+    private var hasReceivedTelemetrySinceConnect = false
     private var payloadPreviewCount = 0
     private var parseMissCount = 0
     private let logger = Logger(subsystem: "com.heliopulse.app", category: "BLE")
@@ -80,7 +81,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         txCharacteristic = nil
         rxCharacteristic = nil
         readableCharacteristics.removeAll()
-        hasReceivedDataSinceConnect = false
+        hasReceivedAnyPayloadSinceConnect = false
+        hasReceivedTelemetrySinceConnect = false
         payloadPreviewCount = 0
         parseMissCount = 0
         onConnectionStateChange?(.idle)
@@ -129,7 +131,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         didConnect peripheral: CBPeripheral
     ) {
         reconnectAttempts = 0
-        hasReceivedDataSinceConnect = false
+        hasReceivedAnyPayloadSinceConnect = false
+        hasReceivedTelemetrySinceConnect = false
         readableCharacteristics.removeAll()
         logger.notice("Connected to peripheral \(peripheral.identifier.uuidString, privacy: .public)")
         onConnectionStateChange?(.connected)
@@ -160,7 +163,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
         noDataTimeoutTask = nil
         readPollTask?.cancel()
         readPollTask = nil
-        hasReceivedDataSinceConnect = false
+        hasReceivedAnyPayloadSinceConnect = false
+        hasReceivedTelemetrySinceConnect = false
         connectedPeripheral = nil
         txCharacteristic = nil
         rxCharacteristic = nil
@@ -241,17 +245,20 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             return
         }
 
+        hasReceivedAnyPayloadSinceConnect = true
+        noDataTimeoutTask?.cancel()
+        noDataTimeoutTask = nil
+
         self.payloadPreviewCount += 1
         if self.payloadPreviewCount <= 8 || self.payloadPreviewCount % 50 == 0 {
             let preview = self.payloadPreview(for: data)
-            logger.debug("Payload #\(self.payloadPreviewCount) char=\(characteristic.uuid.uuidString, privacy: .public) bytes=\(data.count) preview=\(preview, privacy: .public)")
+            let hex = self.hexPreview(for: data)
+            logger.debug("Payload #\(self.payloadPreviewCount) char=\(characteristic.uuid.uuidString, privacy: .public) bytes=\(data.count) ascii=\(preview, privacy: .public) hex=\(hex, privacy: .public)")
         }
         
         // Parse incoming Victron telemetry data
         if let snapshot = parseVictronData(data) {
-            hasReceivedDataSinceConnect = true
-            noDataTimeoutTask?.cancel()
-            noDataTimeoutTask = nil
+            hasReceivedTelemetrySinceConnect = true
             self.parseMissCount = 0
             logger.notice("Telemetry parsed solarW=\(Int(snapshot.solarPower)) battV=\(String(format: "%.2f", snapshot.batteryVoltage), privacy: .public) loadA=\(String(format: "%.2f", snapshot.loadCurrent), privacy: .public)")
             continuation?.yield(snapshot)
@@ -363,8 +370,8 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             try? await Task.sleep(for: .seconds(12))
             guard let self else { return }
             guard self.connectedPeripheral?.identifier == peripheral.identifier else { return }
-            guard !self.hasReceivedDataSinceConnect else { return }
-            self.logger.warning("No telemetry within timeout; forcing reconnect")
+            guard !self.hasReceivedAnyPayloadSinceConnect else { return }
+            self.logger.warning("No raw payloads within timeout; forcing reconnect")
             central.cancelPeripheralConnection(peripheral)
         }
     }
@@ -393,6 +400,10 @@ class VictronBluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralD
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let asciiPreview = String(ascii.prefix(120))
         return asciiPreview.isEmpty ? "<non-ascii payload>" : asciiPreview
+    }
+
+    private func hexPreview(for data: Data) -> String {
+        data.prefix(24).map { String(format: "%02X", $0) }.joined(separator: " ")
     }
 
     private func describe(state: CBManagerState) -> String {
