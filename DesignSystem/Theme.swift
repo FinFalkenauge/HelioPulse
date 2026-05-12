@@ -12,6 +12,32 @@ enum Theme {
 
     static let textPrimary = Color(red: 0.96, green: 0.97, blue: 1.00)
     static let textSecondary = Color(red: 0.67, green: 0.71, blue: 0.83)
+
+    static var cockpitBackground: some View {
+        LinearGradient(
+            colors: [bgDeep, bgRaised.opacity(0.95), bgDeep],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .overlay {
+            RadialGradient(
+                colors: [flowCyan.opacity(0.14), .clear],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 320
+            )
+            .blendMode(.screen)
+        }
+        .overlay {
+            RadialGradient(
+                colors: [solarAmber.opacity(0.08), .clear],
+                center: .bottomLeading,
+                startRadius: 10,
+                endRadius: 280
+            )
+            .blendMode(.screen)
+        }
+    }
 }
 
 struct GlassCard: ViewModifier {

@@ -2,26 +2,23 @@ import Charts
 import SwiftUI
 
 struct TrendsView: View {
-    private let points = TelemetrySnapshot.mockTrend
+    @ObservedObject var viewModel: HelioPulseDashboardViewModel
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Theme.bgDeep, Theme.bgRaised],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            Theme.cockpitBackground
 
             ScrollView {
                 VStack(spacing: 14) {
                     chartCard
+                    summaryCard
                     legendCard
                 }
                 .padding(16)
             }
         }
         .navigationTitle("Trends")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var chartCard: some View {
@@ -30,7 +27,7 @@ struct TrendsView: View {
                 .font(.custom("AvenirNext-DemiBold", size: 18))
                 .foregroundStyle(Theme.textPrimary)
 
-            Chart(points) { point in
+            Chart(viewModel.trendPoints) { point in
                 LineMark(
                     x: .value("Hour", point.hour),
                     y: .value("Solar", point.solarPower)
@@ -50,6 +47,14 @@ struct TrendsView: View {
                         endPoint: .bottom
                     )
                 )
+
+                LineMark(
+                    x: .value("Hour", point.hour),
+                    y: .value("Load", point.loadPower)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(Theme.flowCyan)
+                .lineStyle(.init(lineWidth: 2.2, dash: [6, 3]))
             }
             .chartYAxis {
                 AxisMarks(position: .leading)
@@ -60,14 +65,49 @@ struct TrendsView: View {
         .glassCard()
     }
 
-    private var legendCard: some View {
+    private var summaryCard: some View {
         HStack(spacing: 12) {
-            label(color: Theme.solarAmber, text: "Solar Input")
-            label(color: Theme.flowCyan, text: "Battery Flow")
-            label(color: Theme.stateGreen, text: "Load")
+            statCard(title: "SOC", value: "\(Int(viewModel.snapshot.modeledSOC))%", tint: Theme.warnCoral)
+            statCard(title: "Battery", value: String(format: "%.2fV", viewModel.snapshot.batteryVoltage), tint: Theme.stateGreen)
+            statCard(title: "Source", value: viewModel.snapshot.primarySource.rawValue, tint: Theme.flowCyan)
+        }
+    }
+
+    private var legendCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("What you are seeing")
+                .font(.custom("AvenirNext-DemiBold", size: 16))
+                .foregroundStyle(Theme.textPrimary)
+
+            HStack(spacing: 12) {
+                label(color: Theme.solarAmber, text: "Solar Input")
+                label(color: Theme.flowCyan, text: "Load")
+                label(color: Theme.stateGreen, text: "Battery")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCard()
+    }
+
+    private func statCard(title: String, value: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.custom("AvenirNext-Medium", size: 12))
+                .foregroundStyle(Theme.textSecondary)
+            Text(value)
+                .font(.custom("AvenirNext-DemiBold", size: 16))
+                .foregroundStyle(Theme.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(tint.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(tint.opacity(0.25), lineWidth: 1)
+                )
+        )
     }
 
     private func label(color: Color, text: String) -> some View {

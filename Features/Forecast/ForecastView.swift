@@ -1,16 +1,11 @@
 import SwiftUI
 
 struct ForecastView: View {
-    private let scenarios = ForecastScenario.mock
+    @ObservedObject var viewModel: HelioPulseDashboardViewModel
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Theme.bgDeep, Theme.bgRaised, Theme.bgDeep],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Theme.cockpitBackground
 
             ScrollView {
                 VStack(spacing: 14) {
@@ -21,6 +16,7 @@ struct ForecastView: View {
             }
         }
         .navigationTitle("Forecast")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var runtimeHero: some View {
@@ -33,7 +29,7 @@ struct ForecastView: View {
                 .font(.custom("AvenirNextCondensed-Bold", size: 52))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text("Confidence: medium during drive mode")
+            Text(viewModel.snapshot.driveMode ? "Drive mode detected · confidence reduced" : "Parked · full confidence path")
                 .font(.custom("AvenirNext-Medium", size: 13))
                 .foregroundStyle(Theme.flowCyan)
         }
@@ -43,7 +39,7 @@ struct ForecastView: View {
 
     private var scenarioList: some View {
         VStack(spacing: 10) {
-            ForEach(scenarios) { scenario in
+            ForEach(viewModel.forecastScenarios) { scenario in
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(scenario.name)
@@ -52,6 +48,9 @@ struct ForecastView: View {
                         Text(scenario.description)
                             .font(.custom("AvenirNext-Regular", size: 13))
                             .foregroundStyle(Theme.textSecondary)
+                        Text("Confidence: \(scenario.confidence)")
+                            .font(.custom("AvenirNext-Medium", size: 12))
+                            .foregroundStyle(scenario.tint)
                     }
 
                     Spacer()
