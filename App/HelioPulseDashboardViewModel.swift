@@ -55,9 +55,6 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         self.environmentService.onUpdate = { [weak self] context in
             guard let self else { return }
             self.forecastContext = context
-            if self.hasLiveData {
-                self.snapshot = self.applyPhysicalGuards(to: self.snapshot)
-            }
             if context.hasWeather && context.hasTerrain {
                 self.forecastContextText = String(format: "Forecast: GPS %.3f, %.3f · Wetter+Terrain aktiv", context.latitude, context.longitude)
             } else if context.hasWeather {
@@ -94,7 +91,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     }
 
     private func update(with snapshot: TelemetrySnapshot) async {
-        self.snapshot = applyPhysicalGuards(to: calibratedSnapshot(from: snapshot))
+        self.snapshot = calibratedSnapshot(from: snapshot)
         self.hasLiveData = true
         self.connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Verbunden"
         self.isConnected = !isUsingMockData
@@ -179,44 +176,6 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         )
     }
 
-    private func applyPhysicalGuards(to source: TelemetrySnapshot) -> TelemetrySnapshot {
-        var solarPower = source.solarPower
-        var solarCurrent = source.solarCurrent
-        var solarVoltage = source.solarVoltage
-
-        if let context = forecastContext {
-            let sun = SolarGeometry.position(date: source.timestamp, latitude: context.latitude, longitude: context.longitude)
-            if sun.elevationDegrees < -2 || sun.elevationFactor < 0.01 {
-                solarPower = 0
-                solarCurrent = 0
-                solarVoltage = 0
-            }
-        } else {
-            let hour = Calendar.current.component(.hour, from: source.timestamp)
-            if (hour >= 22 || hour <= 4) && solarPower > 20 {
-                solarPower = 0
-                solarCurrent = 0
-                solarVoltage = 0
-            }
-        }
-
-        return TelemetrySnapshot(
-            id: source.id,
-            timestamp: source.timestamp,
-            solarPower: solarPower,
-            solarVoltage: solarVoltage,
-            solarCurrent: solarCurrent,
-            batteryVoltage: source.batteryVoltage,
-            batteryCurrent: source.batteryCurrent,
-            loadCurrent: source.loadCurrent,
-            chargeState: source.chargeState,
-            modeledSOC: source.modeledSOC,
-            socConfidence: source.socConfidence,
-            driveMode: source.driveMode,
-            primarySource: source.primarySource
-        )
-    }
-
     private func forecast(for snapshot: TelemetrySnapshot) -> [ForecastScenario] {
         let modus = snapshot.driveMode ? "Fahrtmodus" : "Geparkt"
         let pessimistic = Self.scenarioRuntime(hours: runtimeHours(for: snapshot, loadFactor: 1.2, weatherFactor: 0.75))
@@ -239,12 +198,13 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         let now = Date()
         let context = forecastContext
 
+        let currentSolarW = max(0, snapshot.solarPower)
         let baseSolarPotential: Double = {
-            guard let context else { return max(snapshot.solarPower, 120.0) }
+            guard let context else { return currentSolarW }
             let sunNow = SolarGeometry.elevationFactor(date: now, latitude: context.latitude, longitude: context.longitude)
             let weatherNow = hourlyWeatherFactor(at: now, context: context)
-            let combinedNow = max(0.08, 0.55 * sunNow + 0.45 * weatherNow)
-            return max(80.0, snapshot.solarPower / combinedNow)
+            let combinedNow = max(0.05, 0.58 * sunNow + 0.42 * weatherNow)
+            return currentSolarW / combinedNow
         }()
 
         for hour in 0..<72 {
@@ -265,8 +225,10 @@ final class HelioPulseDashboardViewModel: ObservableObject {
                 weatherEnv = 0.65
             }
 
-            let terrainFactor = context != nil ? 1 + min(0.04, (context?.altitude ?? 0) / 10000.0) : 1.0
-            let solarW = max(0, baseSolarPotential * (0.58 * sunFactor + 0.42 * weatherEnv) * weatherFactor * terrainFactor * terrainShade)
+            let terrainFactor = 1.0
+            let projected = max(0, baseSolarPotential * (0.58 * sunFactor + 0.42 * weatherEnv) * weatherFactor * terrainFactor * terrainShade)
+            let headroomCap = max(currentSolarW * 1.25, currentSolarW + 25)
+            let solarW = min(projected, headroomCap)
             let netWh = solarW - baseLoadW
             remainingWh = min(batteryCapacityWh, remainingWh + netWh)
 
