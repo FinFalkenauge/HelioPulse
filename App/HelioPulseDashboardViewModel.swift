@@ -3,11 +3,14 @@ import Observation
 
 @MainActor
 final class HelioPulseDashboardViewModel: ObservableObject {
-    @Published private(set) var snapshot: TelemetrySnapshot = .mock
-    @Published private(set) var trendPoints: [TrendPoint] = TelemetrySnapshot.mockTrend
-    @Published private(set) var forecastScenarios: [ForecastScenario] = ForecastScenario.mock
-    @Published private(set) var connectionState: String = "Suche nach Regler …"
-    @Published private(set) var lastUpdatedText: String = "Just now"
+    @Published private(set) var snapshot: TelemetrySnapshot = .empty
+    @Published private(set) var trendPoints: [TrendPoint] = []
+    @Published private(set) var forecastScenarios: [ForecastScenario] = []
+    @Published private(set) var connectionState: String = "Bluetooth: Nicht verbunden"
+    @Published private(set) var lastUpdatedText: String = "-"
+    @Published private(set) var hasLiveData: Bool = false
+    @Published private(set) var isConnected: Bool = false
+    @Published private(set) var isUsingMockData: Bool = false
 
     private let service: BluetoothTelemetryService
     private let store = TelemetryStore()
@@ -15,10 +18,19 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     init(service: BluetoothTelemetryService = VictronBluetoothTelemetryService()) {
         self.service = service
+        self.isUsingMockData = service.isMockDataEnabled
+        self.service.onConnectionStateText = { [weak self] text in
+            Task { @MainActor in
+                self?.connectionState = text
+                self?.isConnected = text.contains("Verbunden")
+            }
+        }
     }
 
     func start() {
         streamTask?.cancel()
+        connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Suche nach Victron Regler …"
+        isConnected = false
         streamTask = Task {
             await service.startScanning()
             let stream = service.telemetryStream()
@@ -38,7 +50,9 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     private func update(with snapshot: TelemetrySnapshot) async {
         self.snapshot = snapshot
-        self.connectionState = snapshot.driveMode ? "Fahrtmodus aktiv" : "Solar aktiv"
+        self.hasLiveData = true
+        self.connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Verbunden"
+        self.isConnected = !isUsingMockData
         self.lastUpdatedText = Self.relativeTimestamp(from: snapshot.timestamp)
         await store.append(snapshot)
         self.trendPoints = await store.trendPoints()

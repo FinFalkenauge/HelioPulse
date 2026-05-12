@@ -25,11 +25,11 @@ struct ForecastView: View {
                 .font(.custom("AvenirNext-DemiBold", size: 16))
                 .foregroundStyle(Theme.textSecondary)
 
-            Text("17 h 40 m")
+            Text(viewModel.forecastScenarios.first?.runtime ?? "--")
                 .font(.custom("AvenirNextCondensed-Bold", size: 52))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text(viewModel.snapshot.driveMode ? "Fahrtmodus erkannt · Konfidenz reduziert" : "Geparkt · volle Konfidenz")
+            Text(viewModel.hasLiveData ? (viewModel.snapshot.driveMode ? "Fahrtmodus erkannt · Konfidenz reduziert" : "Geparkt · volle Konfidenz") : "Warte auf Live-Telemetrie")
                 .font(.custom("AvenirNext-Medium", size: 13))
                 .foregroundStyle(Theme.flowCyan)
         }
@@ -60,6 +60,14 @@ struct ForecastView: View {
                         .foregroundStyle(scenario.tint)
                 }
                 .glassCard()
+            }
+
+            if viewModel.forecastScenarios.isEmpty {
+                Text("Noch keine Prognose verfügbar. Verbinde den Victron-Controller für echte Daten.")
+                    .font(.custom("AvenirNext-Regular", size: 14))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .glassCard()
             }
         }
     }

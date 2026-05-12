@@ -25,7 +25,10 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>HelioPulse uses Bluetooth to read Victron charger data for live dashboards and trends.</string>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

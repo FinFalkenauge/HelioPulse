@@ -1,6 +1,8 @@
 import Foundation
 
-protocol BluetoothTelemetryService {
+protocol BluetoothTelemetryService: AnyObject {
+    var onConnectionStateText: ((String) -> Void)? { get set }
+    var isMockDataEnabled: Bool { get }
     func telemetryStream() -> AsyncStream<TelemetrySnapshot>
     func startScanning() async
     func stopScanning() async
@@ -13,19 +15,15 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
     private var victronManager: VictronBluetoothManager?
     private var mockTask: Task<Void, Never>?
     private var useMockData = false  // Real Victron telemetry is default for TestFlight
+    var onConnectionStateText: ((String) -> Void)?
+    var isMockDataEnabled: Bool { useMockData }
     
     init() {
-        // Initialize Victron manager for real device connection
-        self.victronManager = VictronBluetoothManager()
-        self.victronManager?.onConnectionStateChange = { [weak self] state in
-            if case .disconnected = state {
-                self?.isScanning = true
-            }
-        }
+        // Delay Bluetooth manager setup until scanning starts to reduce launch-time overhead.
     }
     
     func telemetryStream() -> AsyncStream<TelemetrySnapshot> {
-        // Use real Victron data if device is available, otherwise fall back to mock
+        // Real Victron data is default; mock mode is opt-in only.
         if useMockData {
             return mockTelemetryStream()
         } else {
@@ -35,9 +33,7 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
     
     /// Stream real telemetry from Victron SmartSolar MPPT via Bluetooth.
     private func realTelemetryStream() -> AsyncStream<TelemetrySnapshot> {
-        guard let manager = victronManager else {
-            return mockTelemetryStream()
-        }
+        let manager = ensureVictronManager()
         
         return AsyncStream { continuation in
             self.isScanning = true
@@ -84,7 +80,9 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
     }
     
     func startScanning() async {
+        _ = ensureVictronManager()
         isScanning = true
+        onConnectionStateText?("Bluetooth: Suche nach Victron Regler …")
         // Victron manager will start scanning when telemetryStream() is consumed
     }
     
@@ -93,11 +91,42 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
         mockTask?.cancel()
         mockTask = nil
         victronManager?.stopScanning()
+        onConnectionStateText?("Bluetooth: Nicht verbunden")
     }
     
     /// Switch between mock and real data sources for testing.
     func setMockDataEnabled(_ enabled: Bool) {
         useMockData = enabled
+        onConnectionStateText?(enabled ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Suche nach Victron Regler …")
+    }
+
+    private func ensureVictronManager() -> VictronBluetoothManager {
+        if let existing = victronManager {
+            return existing
+        }
+
+        let manager = VictronBluetoothManager()
+        manager.onConnectionStateChange = { [weak self] state in
+            switch state {
+            case .idle:
+                self?.isScanning = false
+                self?.onConnectionStateText?("Bluetooth: Inaktiv")
+            case .scanning:
+                self?.isScanning = true
+                self?.onConnectionStateText?("Bluetooth: Suche nach Victron Regler …")
+            case .connecting:
+                self?.isScanning = true
+                self?.onConnectionStateText?("Bluetooth: Verbinde …")
+            case .connected:
+                self?.isScanning = false
+                self?.onConnectionStateText?("Bluetooth: Verbunden")
+            case .disconnected:
+                self?.isScanning = true
+                self?.onConnectionStateText?("Bluetooth: Verbindung verloren")
+            }
+        }
+        victronManager = manager
+        return manager
     }
 }
 
@@ -105,6 +134,8 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
 final class MockBluetoothTelemetryService: BluetoothTelemetryService {
     private var continuation: AsyncStream<TelemetrySnapshot>.Continuation?
     private var timer: Task<Void, Never>?
+    var onConnectionStateText: ((String) -> Void)?
+    var isMockDataEnabled: Bool { true }
 
     func telemetryStream() -> AsyncStream<TelemetrySnapshot> {
         AsyncStream { continuation in
@@ -115,6 +146,7 @@ final class MockBluetoothTelemetryService: BluetoothTelemetryService {
 
     func startScanning() async {
         guard timer == nil else { return }
+        onConnectionStateText?("Bluetooth: Demo-Modus aktiv")
 
         timer = Task {
             var toggle = false
@@ -129,5 +161,6 @@ final class MockBluetoothTelemetryService: BluetoothTelemetryService {
     func stopScanning() async {
         timer?.cancel()
         timer = nil
+        onConnectionStateText?("Bluetooth: Inaktiv")
     }
 }

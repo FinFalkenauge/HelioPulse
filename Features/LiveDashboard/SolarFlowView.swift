@@ -2,41 +2,6 @@ import SwiftUI
 
 // MARK: - Private Shapes & Helpers
 
-private struct VWBusOutline: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let w = rect.width, h = rect.height
-        let fx = w * 0.07, rx = w * 0.93
-        let ry = h * 0.04, sy = h * 0.76
-        let cr: CGFloat = 6
-
-        // Start front-bottom
-        p.move(to: CGPoint(x: fx + cr, y: sy))
-        // Front bottom corner
-        p.addQuadCurve(to: CGPoint(x: fx, y: sy - cr),
-                       control: CGPoint(x: fx, y: sy))
-        // Front face (nearly vertical with slight top taper)
-        p.addLine(to: CGPoint(x: fx + 4, y: ry + cr * 2))
-        // Front roof corner
-        p.addQuadCurve(to: CGPoint(x: fx + 4 + cr, y: ry),
-                       control: CGPoint(x: fx + 4, y: ry))
-        // Roof (flat — characteristic T2 roofline)
-        p.addLine(to: CGPoint(x: rx - 4 - cr, y: ry))
-        // Rear roof corner
-        p.addQuadCurve(to: CGPoint(x: rx - 4, y: ry + cr * 2),
-                       control: CGPoint(x: rx - 4, y: ry))
-        // Rear face
-        p.addLine(to: CGPoint(x: rx, y: sy - cr))
-        // Rear bottom corner
-        p.addQuadCurve(to: CGPoint(x: rx - cr, y: sy),
-                       control: CGPoint(x: rx, y: sy))
-        // Bottom sill
-        p.addLine(to: CGPoint(x: fx + cr, y: sy))
-        p.closeSubpath()
-        return p
-    }
-}
-
 private struct BatteryIndicator: View {
     let level: Double
     private var barColor: Color {
@@ -188,65 +153,71 @@ struct SolarFlowView: View {
     // MARK: VW Bus (T2 Bulli)
 
     private var busSection: some View {
-        GeometryReader { geo in
-            let w = geo.size.width, h = geo.size.height
-            let wheelR: CGFloat = 14
-            let wheelY  = h * 0.86
-            let winTop  = h * 0.12
-            let winH    = h * 0.28
-            let darkFill = Color(red: 0.09, green: 0.11, blue: 0.17)
+        ZStack {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.03))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
+                )
 
-            ZStack {
-                // 1. Wheels behind body
-                wheelView(cx: w * 0.21, cy: wheelY, r: wheelR, fill: darkFill)
-                wheelView(cx: w * 0.75, cy: wheelY, r: wheelR, fill: darkFill)
+            VStack(spacing: 6) {
+                ZStack {
+                    Image(systemName: "car.side.fill")
+                        .font(.system(size: 100, weight: .medium))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 0.23, green: 0.35, blue: 0.63),
+                                    Color(red: 0.12, green: 0.19, blue: 0.35)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: Theme.bgDeep.opacity(0.9), radius: 10, y: 8)
 
-                // 2. Body fill — T2 Bulli midnight blue
-                VWBusOutline()
-                    .fill(LinearGradient(
-                        colors: [
-                            Color(red: 0.15, green: 0.25, blue: 0.46),
-                            Color(red: 0.08, green: 0.13, blue: 0.24)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing))
+                    Image(systemName: "car.side.fill")
+                        .font(.system(size: 100, weight: .medium))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Theme.flowCyan.opacity(0.3), .clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .blendMode(.screen)
 
-                // 3. Body stroke (cyan → amber glow)
-                VWBusOutline()
-                    .stroke(LinearGradient(
-                        colors: [Theme.flowCyan.opacity(0.55), Theme.solarAmber.opacity(0.3)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing),
-                            lineWidth: 1.5)
-
-                // 4. VW T2 windows
-                //    Split windscreen (2 panes at front-left)
-                winView(lx: w * 0.10, ty: winTop, ww: w * 0.07, wh: winH)
-                winView(lx: w * 0.18, ty: winTop, ww: w * 0.07, wh: winH)
-                //    Front side window
-                winView(lx: w * 0.30, ty: winTop, ww: w * 0.15, wh: winH)
-                //    Rear side window
-                winView(lx: w * 0.50, ty: winTop, ww: w * 0.17, wh: winH)
-                //    Rear window
-                winView(lx: w * 0.83, ty: winTop, ww: w * 0.09, wh: winH)
-
-                // 5. Battery display — lower half of cabin
-                VStack(spacing: 5) {
-                    BatteryIndicator(level: snapshot.modeledSOC / 100)
-                        .frame(width: 54, height: 20)
-                    HStack(spacing: 10) {
-                        Text("\(Int(snapshot.modeledSOC))%")
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundStyle(socColor)
-                        Text(String(format: "%.1fV", snapshot.batteryVoltage))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Theme.flowCyan)
+                    HStack(spacing: 4) {
+                        ForEach(0..<5, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 1.5)
+                                .fill(Theme.solarAmber.opacity(0.85))
+                                .frame(width: 10, height: 4)
+                        }
                     }
+                    .offset(y: -16)
+
+                    Circle()
+                        .fill(Theme.solarAmber)
+                        .frame(width: 8, height: 8)
+                        .shadow(color: Theme.solarAmber.opacity(0.95), radius: 6)
+                        .offset(x: 48, y: -16)
                 }
-                .position(x: w * 0.50, y: h * 0.55)
+
+                HStack(spacing: 10) {
+                    BatteryIndicator(level: snapshot.modeledSOC / 100)
+                        .frame(width: 58, height: 18)
+                    Text("\(Int(snapshot.modeledSOC))%")
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundStyle(socColor)
+                    Text(String(format: "%.1fV", snapshot.batteryVoltage))
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Theme.flowCyan)
+                }
             }
+            .padding(.vertical, 8)
         }
-        .frame(height: 108)
+        .frame(height: 126)
     }
 
     // MARK: Load (consumer)
@@ -302,29 +273,4 @@ struct SolarFlowView: View {
             : Theme.warnCoral
     }
 
-    @ViewBuilder
-    private func wheelView(cx: CGFloat, cy: CGFloat, r: CGFloat, fill: Color) -> some View {
-        ZStack {
-            Circle()
-                .fill(fill)
-                .overlay(Circle().stroke(Theme.textSecondary.opacity(0.45), lineWidth: 1.5))
-            Circle()
-                .fill(Theme.textSecondary.opacity(0.3))
-                .frame(width: r * 0.55, height: r * 0.55)
-        }
-        .frame(width: r * 2, height: r * 2)
-        .position(x: cx, y: cy)
-    }
-
-    @ViewBuilder
-    private func winView(lx: CGFloat, ty: CGFloat, ww: CGFloat, wh: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-            .fill(Theme.flowCyan.opacity(0.14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 2.5, style: .continuous)
-                    .stroke(Theme.flowCyan.opacity(0.4), lineWidth: 0.8)
-            )
-            .frame(width: ww, height: wh)
-            .position(x: lx + ww / 2, y: ty + wh / 2)
-    }
 }

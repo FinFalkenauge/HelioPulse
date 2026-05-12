@@ -65,6 +65,22 @@ struct TrendPoint: Identifiable, Codable {
 }
 
 extension TelemetrySnapshot {
+    static let empty = TelemetrySnapshot(
+        id: UUID(),
+        timestamp: .distantPast,
+        solarPower: 0,
+        solarVoltage: 0,
+        solarCurrent: 0,
+        batteryVoltage: 0,
+        batteryCurrent: 0,
+        loadCurrent: 0,
+        chargeState: .off,
+        modeledSOC: 0,
+        socConfidence: 0,
+        driveMode: false,
+        primarySource: .solar
+    )
+
     static let mock = TelemetrySnapshot(
         id: UUID(),
         timestamp: .now,

@@ -9,15 +9,61 @@ struct LiveDashboardView: View {
 
             ScrollView {
                 VStack(spacing: 14) {
+                    connectionCard
                     SolarFlowView(snapshot: viewModel.snapshot)
-                    confidenceCard
-                    qualityCard
+                    if viewModel.hasLiveData {
+                        confidenceCard
+                        qualityCard
+                    } else {
+                        waitingCard
+                    }
                 }
                 .padding(16)
             }
         }
         .navigationTitle("HelioPulse")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var connectionCard: some View {
+        HStack(spacing: 10) {
+            Circle()
+                .fill(viewModel.isConnected ? Theme.stateGreen : Theme.warnCoral)
+                .frame(width: 10, height: 10)
+                .shadow(color: (viewModel.isConnected ? Theme.stateGreen : Theme.warnCoral).opacity(0.8), radius: 4)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(viewModel.connectionState)
+                    .font(.custom("AvenirNext-DemiBold", size: 14))
+                    .foregroundStyle(Theme.textPrimary)
+                Text(viewModel.isUsingMockData ? "Datenquelle: Demo" : "Datenquelle: Victron BLE")
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+
+            Spacer()
+
+            if viewModel.hasLiveData {
+                Text("Aktualisiert \(viewModel.lastUpdatedText)")
+                    .font(.custom("AvenirNext-Medium", size: 12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard()
+    }
+
+    private var waitingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Warte auf Live-Telemetrie")
+                .font(.custom("AvenirNext-DemiBold", size: 16))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Sobald der Victron-Controller verbunden ist, erscheinen echte Solar-, Batterie- und Verbrauchsdaten.")
+                .font(.custom("AvenirNext-Regular", size: 14))
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassCard()
     }
 
     private var confidenceCard: some View {
