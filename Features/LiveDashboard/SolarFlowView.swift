@@ -106,52 +106,77 @@ struct SolarFlowView: View {
 
     private var sunSection: some View {
         ZStack {
-            // Pulsing glow halo
-            Circle()
-                .fill(Theme.solarAmber.opacity(0.10 * sunGlow))
-                .frame(width: 110, height: 110)
-
-            // Rotating rays via TimelineView (smooth 60fps, no @State)
-            TimelineView(.animation) { tl in
-                Canvas { ctx, size in
-                    let cx = size.width / 2, cy = size.height / 2
-                    let t  = tl.date.timeIntervalSinceReferenceDate * 0.35
-                    for i in 0..<12 {
-                        let a      = t + Double(i) * (.pi / 6)
-                        let isMain = i % 3 == 0
-                        let inner: Double = 29
-                        let outer: Double = isMain ? 53 : 43
-                        var ray = Path()
-                        ray.move(to: .init(x: cx + inner * cos(a), y: cy + inner * sin(a)))
-                        ray.addLine(to: .init(x: cx + outer * cos(a), y: cy + outer * sin(a)))
-                        ctx.stroke(ray,
-                                   with: .color(Theme.solarAmber.opacity(isMain ? 0.95 : 0.45)),
-                                   style: .init(lineWidth: isMain ? 2.5 : 1.5, lineCap: .round))
-                    }
-                }
-                .frame(width: 110, height: 110)
-            }
-
-            // Sun core
-            Circle()
-                .fill(RadialGradient(
-                    colors: [.white, Theme.solarAmber, Theme.solarAmber.opacity(0.6)],
-                    center: .center, startRadius: 0, endRadius: 26))
-                .frame(width: 52, height: 52)
-                .shadow(color: Theme.solarAmber.opacity(0.85), radius: 14)
-
-            // Watt value on sun
-            VStack(spacing: -1) {
-                Text("\(Int(snapshot.solarPower))")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .contentTransition(.numericText())
-                    .animation(.easeOut(duration: 0.2), value: snapshot.solarPower)
-                Text("W")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-            }
-            .foregroundStyle(Theme.bgDeep)
+            sunGlowHalo
+            sunRays
+            sunCore
+            sunPowerLabel
         }
         .frame(height: 112)
+    }
+
+    private var sunGlowHalo: some View {
+        Circle()
+            .fill(Theme.solarAmber.opacity(0.10 * sunGlow))
+            .frame(width: 110, height: 110)
+    }
+
+    private var sunRays: some View {
+        TimelineView(.animation) { tl in
+            Canvas { ctx, size in
+                drawSunRays(in: ctx, size: size, date: tl.date)
+            }
+            .frame(width: 110, height: 110)
+        }
+    }
+
+    private var sunCore: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [.white, Theme.solarAmber, Theme.solarAmber.opacity(0.6)],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: 26
+                )
+            )
+            .frame(width: 52, height: 52)
+            .shadow(color: Theme.solarAmber.opacity(0.85), radius: 14)
+    }
+
+    private var sunPowerLabel: some View {
+        VStack(spacing: -1) {
+            Text("\(Int(snapshot.solarPower))")
+                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                .contentTransition(.numericText())
+                .animation(.easeOut(duration: 0.2), value: snapshot.solarPower)
+
+            Text("W")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+        }
+        .foregroundStyle(Theme.bgDeep)
+    }
+
+    private func drawSunRays(in ctx: GraphicsContext, size: CGSize, date: Date) {
+        let cx = size.width / 2
+        let cy = size.height / 2
+        let t = date.timeIntervalSinceReferenceDate * 0.35
+
+        for i in 0..<12 {
+            let a = t + Double(i) * (.pi / 6)
+            let isMain = i.isMultiple(of: 3)
+            let inner: Double = 29
+            let outer: Double = isMain ? 53 : 43
+
+            var ray = Path()
+            ray.move(to: CGPoint(x: cx + inner * cos(a), y: cy + inner * sin(a)))
+            ray.addLine(to: CGPoint(x: cx + outer * cos(a), y: cy + outer * sin(a)))
+
+            ctx.stroke(
+                ray,
+                with: .color(Theme.solarAmber.opacity(isMain ? 0.95 : 0.45)),
+                style: .init(lineWidth: isMain ? 2.5 : 1.5, lineCap: .round)
+            )
+        }
     }
 
     // MARK: VW Bus (T2 Bulli)
