@@ -8,6 +8,7 @@ struct VictronRegisterParser {
         case batteryVoltage = 0xEDBC      // V (× 100)
         case panelVoltage = 0xEDBB        // V (× 100)
         case panelCurrent = 0xEDC0        // A (× 100)
+        case loadCurrent = 0xEDBE         // A (× 100), synthetic fallback for text parsing
         case batteryCurrent = 0xEDBD      // A (× 100)
         case chargePower = 0xEDF0         // W
         case stateOfCharge = 0xEDE0       // % (0-100)
@@ -31,12 +32,15 @@ struct VictronRegisterParser {
     static func buildTextSnapshot(
         registers: [Register: Int],
         timestamp: Date = Date()
-    ) -> TelemetrySnapshot {
+    ) -> TelemetrySnapshot? {
         let solarVoltage = Double(registers[.panelVoltage] ?? 0) / 1000.0
-        let solarCurrent = Double(registers[.panelCurrent] ?? 0) / 1000.0
+        let measuredSolarCurrent = Double(registers[.panelCurrent] ?? 0) / 1000.0
         let batteryVoltage = Double(registers[.batteryVoltage] ?? 0) / 1000.0
         let batteryCurrent = Double(registers[.batteryCurrent] ?? 0) / 1000.0
-        let solarPower = Double(registers[.chargePower] ?? 0)
+        let measuredSolarPower = Double(registers[.chargePower] ?? 0)
+        let derivedSolarCurrent = solarVoltage > 0.1 ? max(0, measuredSolarPower / solarVoltage) : 0
+        let solarCurrent = measuredSolarCurrent > 0 ? measuredSolarCurrent : derivedSolarCurrent
+        let solarPower = measuredSolarPower > 0 ? measuredSolarPower : max(0, solarVoltage * max(0, measuredSolarCurrent))
         let stateValue = registers[.chargeState] ?? 0
         let modeledSOC = Double(registers[.stateOfCharge] ?? 0) / 10.0
         
@@ -48,9 +52,11 @@ struct VictronRegisterParser {
             chargeState = .float
         }
         
-        // Load current is reported directly by VE.Direct when available.
-        let loadCurrent = Double(registers[.panelCurrent] ?? registers[.batteryCurrent] ?? 0) / 1000.0
+        // IL is load current; do not infer load from PV or battery current.
+        let loadCurrent = max(0, Double(registers[.loadCurrent] ?? 0) / 1000.0)
         
+        guard (8.0...18.0).contains(batteryVoltage) else { return nil }
+
         return TelemetrySnapshot(
             id: UUID(),
             timestamp: timestamp,
@@ -72,12 +78,15 @@ struct VictronRegisterParser {
     static func buildBinarySnapshot(
         registers: [Register: Int],
         timestamp: Date = Date()
-    ) -> TelemetrySnapshot {
+    ) -> TelemetrySnapshot? {
         let solarVoltage = Double(registers[.panelVoltage] ?? 0) / 100.0
-        let solarCurrent = Double(registers[.panelCurrent] ?? 0) / 100.0
+        let measuredSolarCurrent = Double(registers[.panelCurrent] ?? 0) / 100.0
         let batteryVoltage = Double(registers[.batteryVoltage] ?? 0) / 100.0
         let batteryCurrent = Double(registers[.batteryCurrent] ?? 0) / 100.0
-        let solarPower = Double(registers[.chargePower] ?? 0)
+        let measuredSolarPower = Double(registers[.chargePower] ?? 0)
+        let derivedSolarCurrent = solarVoltage > 0.1 ? max(0, measuredSolarPower / solarVoltage) : 0
+        let solarCurrent = measuredSolarCurrent > 0 ? measuredSolarCurrent : derivedSolarCurrent
+        let solarPower = measuredSolarPower > 0 ? measuredSolarPower : max(0, solarVoltage * max(0, measuredSolarCurrent))
         let stateValue = registers[.chargeState] ?? 0
         let modeledSOC = Double(registers[.stateOfCharge] ?? 50)
 
@@ -88,7 +97,9 @@ struct VictronRegisterParser {
             chargeState = .float
         }
 
-        let loadCurrent = Double(registers[.panelCurrent] ?? registers[.batteryCurrent] ?? 0) / 100.0
+        let loadCurrent = max(0, Double(registers[.loadCurrent] ?? 0) / 100.0)
+
+        guard (8.0...18.0).contains(batteryVoltage) else { return nil }
 
         return TelemetrySnapshot(
             id: UUID(),
@@ -205,9 +216,10 @@ struct VictronRegisterParser {
         switch key {
         case "V": registers[.batteryVoltage] = value
         case "VPV": registers[.panelVoltage] = value
-        case "PPV", "P": registers[.chargePower] = value
+        case "IPV": registers[.panelCurrent] = value
+        case "PPV", "P", "PV": registers[.chargePower] = value
         case "I": registers[.batteryCurrent] = value
-        case "IL": registers[.panelCurrent] = value
+        case "IL": registers[.loadCurrent] = value
         case "SOC": registers[.stateOfCharge] = value
         case "CS": registers[.chargeState] = value
         case "ERR": registers[.errorCode] = value

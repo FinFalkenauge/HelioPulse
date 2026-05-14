@@ -92,7 +92,17 @@ struct TrendsView: View {
                 }
                 .chartYScale(domain: 0...maxPowerForAxis)
 
-                if viewModel.trendPoints.count < 3 {
+                if viewModel.trendPoints.isEmpty {
+                    Text(viewModel.hasLiveData ? "Noch keine Verlaufspunkte in diesem Zeitraum" : "Warte auf Live-Telemetrie …")
+                        .font(.custom("AvenirNext-Medium", size: 13))
+                        .foregroundStyle(Theme.textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.black.opacity(0.35))
+                        )
+                } else if viewModel.trendPoints.count < 3 {
                     Text("Sammle Verlaufspunkte …")
                         .font(.custom("AvenirNext-Medium", size: 13))
                         .foregroundStyle(Theme.textSecondary)
