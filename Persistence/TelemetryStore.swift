@@ -29,7 +29,10 @@ actor TelemetryStore {
         let dir = appSupport.appendingPathComponent("HelioPulse", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         historyURL = dir.appendingPathComponent("telemetry-history.json")
-        loadHistory()
+        if let persisted = Self.loadPersistedHistory(from: historyURL) {
+            snapshots = persisted.snapshots
+            dailyAggregates = persisted.dailyAggregates.sorted(by: { $0.dayStart < $1.dayStart })
+        }
     }
 
     func append(_ snapshot: TelemetrySnapshot) {
@@ -203,11 +206,9 @@ actor TelemetryStore {
         return Double(raw)
     }
 
-    private func loadHistory() {
-        guard let data = try? Data(contentsOf: historyURL) else { return }
-        guard let persisted = try? JSONDecoder().decode(PersistedHistory.self, from: data) else { return }
-        snapshots = persisted.snapshots
-        dailyAggregates = persisted.dailyAggregates.sorted(by: { $0.dayStart < $1.dayStart })
+    private static func loadPersistedHistory(from url: URL) -> PersistedHistory? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(PersistedHistory.self, from: data)
     }
 
     private func saveHistory() {

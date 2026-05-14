@@ -121,7 +121,7 @@ final class VictronBluetoothTelemetryService: BluetoothTelemetryService {
                 self?.onConnectionStateText?("Bluetooth: Verbinde …")
             case .connected:
                 self?.isScanning = false
-                self?.onConnectionStateText?("Bluetooth: Verbunden, warte auf Telemetrie …")
+                self?.onConnectionStateText?("Bluetooth: Verbunden, warte auf vollständige Live-Telemetrie …")
             case .disconnected:
                 self?.isScanning = true
                 self?.onConnectionStateText?("Bluetooth: Verbindung verloren")

@@ -3,6 +3,8 @@ import Observation
 
 @MainActor
 final class HelioPulseDashboardViewModel: ObservableObject {
+    private static let maxForecastHours = 24 * 30
+
     @Published private(set) var snapshot: TelemetrySnapshot = .empty
     @Published private(set) var trendPoints: [TrendPoint] = []
     @Published private(set) var trendRange: TrendRange = .day24
@@ -15,6 +17,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     @Published private(set) var batteryChemistry: BatteryChemistry = .unknown
     @Published private(set) var batteryProfile: BatteryProfile = .custom
     @Published private(set) var batteryCapacityAh: Double = 100
+    @Published private(set) var todayYieldWh: Double = 0
     @Published private(set) var forecastContextText: String = "Forecast: Nur Live-Telemetrie"
 
     private let service: BluetoothTelemetryService
@@ -26,6 +29,9 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     private let batteryChemistryKey = "heliopulse.batteryChemistry"
     private let batteryProfileKey = "heliopulse.batteryProfile"
     private let batteryCapacityAhKey = "heliopulse.batteryCapacityAh"
+    private var lastYieldSampleTimestamp: Date?
+    private var historyTodayYieldWh: Double?
+    private var historyTodayYieldDayStart: Date?
 
     init(service: BluetoothTelemetryService = VictronBluetoothTelemetryService()) {
         self.service = service
@@ -57,6 +63,12 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             guard let self else { return }
             Task { @MainActor in
                 await self.store.importVictronHistory(payload)
+                self.historyTodayYieldWh = payload.todayYieldWh
+                self.historyTodayYieldDayStart = payload.todayYieldWh.map { _ in Calendar.current.startOfDay(for: .now) }
+                if let todayYieldWh = self.historyTodayYieldWh {
+                    self.todayYieldWh = todayYieldWh
+                    self.lastYieldSampleTimestamp = nil
+                }
                 self.trendPoints = await self.store.trendPoints(range: self.trendRange)
             }
         }
@@ -77,6 +89,10 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     func start() {
         streamTask?.cancel()
+        todayYieldWh = 0
+        lastYieldSampleTimestamp = nil
+        historyTodayYieldWh = nil
+        historyTodayYieldDayStart = nil
         connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Suche nach Victron Regler …"
         isConnected = false
         forecastScenarios = forecast(for: snapshot)
@@ -101,6 +117,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
 
     private func update(with snapshot: TelemetrySnapshot) async {
         self.snapshot = calibratedSnapshot(from: snapshot)
+        updateTodayYield(with: self.snapshot)
         self.hasLiveData = true
         self.connectionState = isUsingMockData ? "Bluetooth: Demo-Modus aktiv" : "Bluetooth: Verbunden"
         self.isConnected = !isUsingMockData
@@ -219,11 +236,12 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             guard let context else { return currentSolarW }
             let sunNow = SolarGeometry.elevationFactor(date: now, latitude: context.latitude, longitude: context.longitude)
             let weatherNow = hourlyWeatherFactor(at: now, context: context)
-            let combinedNow = max(0.05, 0.58 * sunNow + 0.42 * weatherNow)
+            // Weather modulates solar yield only when sun is above horizon.
+            let combinedNow = max(0.05, sunNow * max(0.2, weatherNow))
             return currentSolarW / combinedNow
         }()
 
-        for hour in 0..<72 {
+        for hour in 0..<Self.maxForecastHours {
             let date = Calendar.current.date(byAdding: .hour, value: hour, to: now) ?? now
             let sunFactor: Double
             let weatherEnv: Double
@@ -242,7 +260,8 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             }
 
             let terrainFactor = 1.0
-            let projected = max(0, baseSolarPotential * (0.58 * sunFactor + 0.42 * weatherEnv) * weatherFactor * terrainFactor * terrainShade)
+            // Ensure no solar production at night.
+            let projected = max(0, baseSolarPotential * sunFactor * max(0.2, weatherEnv) * weatherFactor * terrainFactor * terrainShade)
             let headroomCap = max(currentSolarW * 1.25, currentSolarW + 25)
             let solarW = min(projected, headroomCap)
             let netWh = solarW - baseLoadW
@@ -253,11 +272,7 @@ final class HelioPulseDashboardViewModel: ObservableObject {
             }
         }
 
-        if snapshot.driveMode {
-            return 72
-        }
-
-        return 72
+        return Double(Self.maxForecastHours)
     }
 
     private func hourlyWeatherFactor(at date: Date, context: ForecastEnvironmentContext) -> Double {
@@ -293,8 +308,11 @@ final class HelioPulseDashboardViewModel: ObservableObject {
     }
 
     private static func scenarioRuntime(hours: Double) -> String {
-        if hours >= 72 {
-            return "72h+"
+        if hours >= Double(maxForecastHours) {
+            return "30T+"
+        }
+        if hours >= 48 {
+            return String(format: "%.1fT", hours / 24.0)
         }
         return String(format: "%.1fh", hours)
     }
@@ -315,5 +333,38 @@ final class HelioPulseDashboardViewModel: ObservableObject {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: .now)
+    }
+
+    private func updateTodayYield(with snapshot: TelemetrySnapshot) {
+        let calendar = Calendar.current
+
+        if let historyTodayYieldWh {
+            if let historyDayStart = historyTodayYieldDayStart,
+               !calendar.isDate(historyDayStart, inSameDayAs: snapshot.timestamp) {
+                self.historyTodayYieldWh = nil
+                self.historyTodayYieldDayStart = nil
+                todayYieldWh = 0
+                lastYieldSampleTimestamp = nil
+            } else {
+                todayYieldWh = historyTodayYieldWh
+                lastYieldSampleTimestamp = nil
+                return
+            }
+        }
+
+        if let last = lastYieldSampleTimestamp,
+           !calendar.isDate(last, inSameDayAs: snapshot.timestamp) {
+            todayYieldWh = 0
+            lastYieldSampleTimestamp = nil
+        }
+
+        if let last = lastYieldSampleTimestamp {
+            let dt = snapshot.timestamp.timeIntervalSince(last)
+            if dt > 0, dt <= 600 {
+                todayYieldWh += max(0, snapshot.solarPower) * (dt / 3600.0)
+            }
+        }
+
+        lastYieldSampleTimestamp = snapshot.timestamp
     }
 }

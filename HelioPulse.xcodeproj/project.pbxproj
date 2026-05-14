@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0C675355786BC1E2636E3FB4 /* SolarFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9310893DEC356104F0E7170 /* SolarFlowView.swift */; };
+		20E3D2E17B7B4F4E9F7C1C10 /* LiveEnergyTopologyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D8B4C0E2D7A4C5B8F3E9A11 /* LiveEnergyTopologyView.swift */; };
 		0C6F66770EE1C248F4204829 /* ForecastScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */; };
 		194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */; };
 		1FB638226B4FB351FAF8AD93 /* ForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DFD4B83D8D988EC9741191 /* ForecastView.swift */; };
@@ -17,6 +18,7 @@
 		5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */; };
 		5A28412A659A9C1BA6BC34E4 /* BluetoothTelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */; };
 		5E8D5C73B9A31A6F55278CBF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92FB60E0580764B40D8A59FD /* Assets.xcassets */; };
+		6128CAB06CD023540FD79FA6 /* VictronHistoryPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65123AD741C4E14A23CCF341 /* VictronHistoryPayload.swift */; };
 		6DC0D4329C09F3D22C083B57 /* ForecastEnvironmentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE62FE76E111A351057E047 /* ForecastEnvironmentService.swift */; };
 		71A00E8156803673DE7A0D28 /* VictronRegisterParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331302606861554607125546 /* VictronRegisterParser.swift */; };
 		874109392900AA6F6B094B08 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A32F31D5ABC6B3AB9843965B /* LaunchScreen.storyboard */; };
@@ -36,9 +38,11 @@
 		102BDF3CDC9399D7529695C0 /* BluetoothTelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothTelemetryService.swift; sourceTree = "<group>"; };
 		137C162114C2195E7F54D233 /* Volkswagen Type 2 Kombi T1 1967.fbx */ = {isa = PBXFileReference; path = "Volkswagen Type 2 Kombi T1 1967.fbx"; sourceTree = "<group>"; };
 		2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
+		9D8B4C0E2D7A4C5B8F3E9A11 /* LiveEnergyTopologyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveEnergyTopologyView.swift; sourceTree = "<group>"; };
 		331302606861554607125546 /* VictronRegisterParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronRegisterParser.swift; sourceTree = "<group>"; };
 		4BE62FE76E111A351057E047 /* ForecastEnvironmentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastEnvironmentService.swift; sourceTree = "<group>"; };
 		5AAA52FF4F8682C64C79B497 /* HelioPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HelioPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		65123AD741C4E14A23CCF341 /* VictronHistoryPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VictronHistoryPayload.swift; sourceTree = "<group>"; };
 		7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySnapshot.swift; sourceTree = "<group>"; };
 		92FB60E0580764B40D8A59FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9B9EEBAE0CD387023457445B /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
@@ -153,6 +157,7 @@
 			isa = PBXGroup;
 			children = (
 				2919B4696C835BC11F42B9A6 /* LiveDashboardView.swift */,
+				9D8B4C0E2D7A4C5B8F3E9A11 /* LiveEnergyTopologyView.swift */,
 				A9310893DEC356104F0E7170 /* SolarFlowView.swift */,
 				A34ABDE6AB40CE97191104B8 /* VWBus3DView.swift */,
 			);
@@ -166,6 +171,7 @@
 				AA8DDA203772C85131E08C15 /* BatteryProfile.swift */,
 				B107FAB768465F4E0BA93C78 /* ForecastScenario.swift */,
 				7F54B174E85B0C11E63D8A88 /* TelemetrySnapshot.swift */,
+				65123AD741C4E14A23CCF341 /* VictronHistoryPayload.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -279,6 +285,7 @@
 				887E12D32001C9FD7B5007E4 /* HelioPulseApp.swift in Sources */,
 				487F80C647EB59077C9AE44B /* HelioPulseDashboardViewModel.swift in Sources */,
 				5190C5FF9ED4D74FB2C97FF3 /* LiveDashboardView.swift in Sources */,
+				20E3D2E17B7B4F4E9F7C1C10 /* LiveEnergyTopologyView.swift in Sources */,
 				AB9288D42E716F4071FCF575 /* RootView.swift in Sources */,
 				0C675355786BC1E2636E3FB4 /* SolarFlowView.swift in Sources */,
 				194B04504F374E1F979B9B8A /* TelemetrySnapshot.swift in Sources */,
@@ -287,6 +294,7 @@
 				EA01E8C21A7F839E44D494ED /* TrendsView.swift in Sources */,
 				A193A00F33DFEA66812B8E11 /* VWBus3DView.swift in Sources */,
 				8C66BF12B476B626B1DC046B /* VictronBluetoothManager.swift in Sources */,
+				6128CAB06CD023540FD79FA6 /* VictronHistoryPayload.swift in Sources */,
 				71A00E8156803673DE7A0D28 /* VictronRegisterParser.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

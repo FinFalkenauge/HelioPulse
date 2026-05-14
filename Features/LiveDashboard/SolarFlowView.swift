@@ -16,6 +16,7 @@ private struct BatteryIndicator: View {
                     .fill(barColor)
                     .padding(2.5)
                     .frame(width: max(6, (geo.size.width - 5) * level + 5))
+                    .animation(.spring(response: 0.6, dampingFraction: 0.75), value: level)
             }
         }
     }
@@ -199,9 +200,13 @@ struct SolarFlowView: View {
                     Text(socText)
                         .font(.system(size: 16, weight: .heavy, design: .rounded))
                         .foregroundStyle(isSocEstimated ? Theme.textSecondary : socColor)
+                        .contentTransition(.numericText())
+                        .animation(.easeOut(duration: 0.2), value: socText)
                     Text(String(format: "%.1fV", snapshot.batteryVoltage))
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(Theme.flowCyan)
+                        .contentTransition(.numericText())
+                        .animation(.easeOut(duration: 0.2), value: snapshot.batteryVoltage)
                 }
 
                 if showSocHint {
@@ -227,7 +232,9 @@ struct SolarFlowView: View {
                 VStack(spacing: 2) {
                     Text(String(format: "%.0f W", loadWatts))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(Theme.warnCoral)
+                        .foregroundStyle(Theme.flowCyan)
+                        .contentTransition(.numericText())
+                        .animation(.easeOut(duration: 0.2), value: loadWatts)
                     Text("Leistung")
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(Theme.textSecondary)
@@ -240,7 +247,9 @@ struct SolarFlowView: View {
                 VStack(spacing: 2) {
                     Text(String(format: "%.1f A", snapshot.loadCurrent))
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(Theme.warnCoral)
+                        .foregroundStyle(Theme.flowCyan)
+                        .contentTransition(.numericText())
+                        .animation(.easeOut(duration: 0.2), value: snapshot.loadCurrent)
                     Text("Strom")
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(Theme.textSecondary)
@@ -250,10 +259,10 @@ struct SolarFlowView: View {
             .padding(.vertical, 12)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Theme.warnCoral.opacity(0.08))
+                    .fill(Theme.flowCyan.opacity(0.08))
                     .overlay {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Theme.warnCoral.opacity(0.28), lineWidth: 1)
+                            .stroke(Theme.flowCyan.opacity(0.28), lineWidth: 1)
                     }
             }
         }
